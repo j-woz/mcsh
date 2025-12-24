@@ -1,0 +1,112 @@
+
+
+= MCSH Guide
+
+== Invocation
+
+For help, use `mcsh -h`.
+
+=== Execute a simple command string
+
+----
+$ mcsh -c "print HELLO"
+----
+
+=== Execute a script
+
+----
+$ mcsh V1=text1 V2=text2 script.mc arg1 arg2 arg3
+----
+
+=== Execute interactively
+
+----
+$ mcsh
+----
+
+== Basic built-ins
+
+=== Output
+
+----
+print HELLO
+----
+
+== Basic variables
+
+----
+\= x 3
+print $x
+----
+
+== Data structures
+
+=== Lists
+
+----
+\= L (( list ))
+----
+
+----
++ $L $item
+----
+
+=== Tables
+
+----
+\= T (( table ))
+----
+
+----
++ $T $key $value
+----
+
+----
+\= keys $@T
+----
+
+
+
+== Grammar
+
+=== Plain commands
+
+=== Conditionals
+
+=== Loops
+
+=== Defining functions
+
+== Functions
+
+=== Named arguments
+
+Signature is the specification in the script or function:
+
+----
+signature x y z
+----
+
+or
+
+----
+function f { x y z } { body }
+----
+
+Arguments are the caller-provided names and values:
+
+----
+./script.sh 1 2 3
+----
+
+or
+
+----
+f 1 2 3
+----
+
+Parameters are the product of applying the arguments to the signature
+
+----
+( x=1 y=2 z=3 )
+----
