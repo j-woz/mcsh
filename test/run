@@ -1,0 +1,30 @@
+#!/bin/zsh
+set -eu
+
+# RUN
+# Build and run MCSH program under valgrind
+
+J=( -j 1 )
+zparseopts -D -E j:=J
+
+if (( ${#} == 0 )) {
+  print "Provide a PROGRAM!"
+  exit 1
+}
+
+PROGRAM=$1  # E.g., mcsh.  Must live in bin
+shift
+
+THIS=${0:A:h}
+
+export VALGRIND=${VALGRIND:-1}
+if [[ ${OS} == "Cygwin" ]] VALGRIND=0
+if (( VALGRIND )) {
+  RUNNER=$THIS/vg.sh
+} else {
+  RUNNER=""
+}
+
+cd $THIS/..
+make $J bin/$PROGRAM
+$RUNNER $PROGRAM ${*}

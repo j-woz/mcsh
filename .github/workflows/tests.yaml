@@ -1,0 +1,50 @@
+name: MCSH
+
+env:
+  # For Chicago time on log messages:
+  TZ: America/Chicago
+
+on:
+  # Schedule and workflow_dispatch (manual) only work on default branch
+  schedule:
+    - cron: "0 4 * * *"   # Fire at 4 AM every day
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read    # To read the project source code (git)
+
+jobs:
+  build_conda_pkg:
+    name: OS=${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap
+        run: |
+          ./bootstrap
+
+      - name: Configure
+        run: |
+          ./configure --prefix=$HOME/mcsh-install
+
+      - name: Make
+        run: |
+          make
+
+      - name: Tests
+        run: |
+          test/script/test-all.zsh

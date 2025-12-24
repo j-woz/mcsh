@@ -1,0 +1,81 @@
+
+0: Basic parsing
+00: Noops
+01: Comments
+02: Syntax oddities
+03: Semicolon
+04: Basic expr
+05: Parse errors
+06: Obvious semantic errors
+07: Basic errors
+08: Variable expansion
+081: regsub
+082: globs
+083: expanders
+
+1: Elementary builtins (print)
+11: Bad builtins
+14: Data settings (drop, ...)
+15: Environment variables / specials
+154: Automatic variables (startup, stack)
+155: Active variables (mapped to C functions)
+16: Globals
+
+17:
+
+18: Functions
+
+19: Fork
+191: Command substitution
+192: Job control
+193: Job list
+
+2: Program structure
+21: Command line features
+23: Source script / eval
+24: Module loads
+25: Classes
+27: Macros
+
+3: Builtins library
+
+31: String ops
+313: Big strings
+314: Regex $s/t $s/p/r
+32: Signature
+33: Math
+35: System commands
+36: OS interfaces
+363: FS
+364: I/O
+
+4: Control structures
+
+41: If
+415: Auto-expr
+42: Loops
+48: Exceptions
+
+5: User functions
+
+52: Auto-vars $1 $2 $3 $@
+55: Script signatures
+56: Named arguments
+
+6: Data structures
+
+610: Lists
+620: Tables
+
+7: Errors
+
+
+8: Optional integrations
+
+81: C interfaces
+82: Bash
+83: Python
+
+9: Applications
+91: Basic control
+92: MCK features
