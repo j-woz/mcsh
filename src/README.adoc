@@ -1,0 +1,7 @@
+
+= Developers' Guide
+
+== Naming
+
+rc::
+return code
