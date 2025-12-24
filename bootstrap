@@ -1,7 +1,10 @@
 #!/bin/sh
 set -ex
 
-# BOOTSTRAP SH
+# BOOTSTRAP
 # Simply run autoreconf
 
-autoreconf -Wno-portability --install
+# autoreconf requires AUTHORS ChangeLog NEWS README
+#            but will not create them
+
+autoreconf -Wno-portability --install --symlink
