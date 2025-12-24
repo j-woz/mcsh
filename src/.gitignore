@@ -1,0 +1,6 @@
+lex.mcs_expr_.c
+lex.mcs_script_.c
+mcsh-expr-grammar.c
+mcsh-expr-grammar.h
+mcsh-script-grammar.c
+mcsh-script-grammar.h
