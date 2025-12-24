@@ -8,11 +8,13 @@ AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
 # [subdir-objects]
 
+AC_USE_SYSTEM_EXTENSIONS
+
 m4_include([m4/ax_lib_readline.m4])
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_LEX
+AC_PROG_LEX([noyywrap])
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_YACC([bison])

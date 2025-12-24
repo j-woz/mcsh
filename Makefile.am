@@ -34,16 +34,16 @@ bin_PROGRAMS = bin/mcsh bin/mcc bin/mcpp bin/mchp \
                $(C_TESTS)
 
 src/lex.mcs_expr_.c: src/mcsh-expr-lexer.l src/mcsh-expr-grammar.h
-	flex -o $(@) $(<)
+	flex -o $@ $<
 
 src/mcsh-expr-lexer.o: src/lex.mcs_expr_.c
-	gcc $(CFLAGS) -c -o $(@) $(<)
+	gcc $(CFLAGS) -c -o $@ $<
 
 src/lex.mcs_script_.c: src/mcsh-script-lexer.l src/mcsh-script-grammar.h
-	flex -o $(@) $(<)
+	flex -o $@ $<
 
 src/mcsh-script-lexer.o: src/lex.mcs_script_.c
-	gcc $(CFLAGS) -c -o $(@) $(<)
+	gcc $(CFLAGS) -c -o $@ $<
 
 bin_mcc_SOURCES  = src/mcsh-calc.c
 bin_mcsh_SOURCES = src/mcsh-main.c
