@@ -78,8 +78,8 @@ default assignment:  'default x 3' or ':= x 3'
 default evaluation:  '$x:3' - but handle $PATH
 string buffer type
 fast string appends
-calc builtin functions: abs(), round(), pow(), etc.
 V=3 command
+calc builtin functions: abs(), round(), pow(), etc.
 Prompt NEW: 2023-09-09
 V=(( f $x ))
 Check 'loop while' NEW: 2023-09-09
