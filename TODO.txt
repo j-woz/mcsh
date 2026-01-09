@@ -1,0 +1,237 @@
+
+RULE: Only one reordering may be done per day;
+      that is a one line swap.
+      Use "Reorder" in commit.
+
+MUST FIX STDIN MODULE SITUATION 2024-02-12
+
+ROTATE:
+Feature  2023-08-16 2023-10-08
+App      2023-09-01 2023-11-11
+Exotic   2023-10-08 2023-12-14
+
+Apps
+rmbaks WIP
+date-rvns : Insert date into filenames, replacing any " (1)"
+pwgen         Use r14924
+chess
+tip   Replace ShellTools/tip  2024-12-17
+
+Tools
+MCSH    ++++
+MCC     +++
+MCPP    ++
+MCHP    +
+MCAWK
+MCMAKE
+
+C23: Think about using generics, auto.
+gnulib: Thing about using gnulib
+        Lists
+        Human-readable byte sizes
+
+Using syntax:
+= x  (( f 3 ))      # subfun
+= x $(( print 3 ))  # subcmd capture
+= x =(( $x + 2 ))   # auto-expr (TODO)
+= x  (( $ $x + 2 )) # equivalent to above
+
+All functions return bool - false indicates internal error or bug.
+This works with the macro CHECK()
+User code should never trigger this, but should trigger exceptions.
+
+= QUICK JOBS =
+
+strmap.c: strmap_realloc_keys() optimization (see TODO there)
+          NEW: 2023-01-01
+use lookup.h in mcsh_code_name()        NEW: 2023-08-09
+                op_to_string()          NEW: 2023-08-16
+
+= REGRESSIONS =
+
+https://www.reddit.com/r/C_Programming/comments/ozew2u/better_way_to_get_a_random_64_bit_integer
+
+NEW 2024-06-06
+mcsh> print (( + 2 3 ))
+23
+mcsh> print (( + 2 3 ))
+print
+
+= CORE =
+
+See also test/.../About.txt
+
+Fix mcsh_node constructors - Postpone for Eclipse 2024-05-07
+mcsh-parser.h does not need to be header-only - Postpone for Eclipse 2024-05-07
+auto-expr  NEW: 2023-08-19 test 4150
+mcwk    EXOTIC NEW: 2023-08-09
+mcmake  EXOTIC NEW: 2023-08-09 (skip)
+prune   OPTZ   NEW: 2023-08-09 (skip x2)
+Named arguments 'f x=3' NEW: 2023-11-08
+& use mcsh.c:mcsh_signature_parse() in builtins.c:builtin_signature()
+App: rmbaks REISSUE: 2025-03-13
+Exotic: mcwk: Do something: See test 9201 and notes below REISSUE: 2025-03-13
+Make expr support floats NEW: 2023-08-19
+true/false literals
+shift : Note that mcsh_entry has a shift for unknown reason
+default assignment:  'default x 3' or ':= x 3'
+default evaluation:  '$x:3' - but handle $PATH
+string buffer type
+fast string appends
+calc builtin functions: abs(), round(), pow(), etc.
+V=3 command
+Prompt NEW: 2023-09-09
+V=(( f $x ))
+Check 'loop while' NEW: 2023-09-09
+Builtin which NEW: 2023-11-11
+Comma operator in math NEW: 2023-12-05
+Ability to run shell command in math environment (use functions?) NEW: 2023-12-05
+Assignments in calc mode (( $ x = 3 )) NEW 2024-04-13
+Implement $mcsh.version NEW 2023-12-18
+printf/sprintf - % command NEW 2024-04-21
+String interpolation: x=3 ; (( % "x=${x}" )) NEW 2024-04-21
+Signature for ints - apply to fib NEW 2024-04-21
+Properly combine variable evaluation and expansion $+A[2] NEW 2024-04-21
+Delete from list, dict NEW 2024-04-21
+Expand %j to pid for job j NEW 2024-04-21
+Wait for all jobs NEW 2024-04-21
+Job list as actual list NEW 2024-04-21
+Auto-run shell commands like Tcl NEW 2024-04-21
+Classes NEW: 2024-12-06: Postponed 2024-04-21
+Extension functions
+MCHP <?if expr ?>
+IPC for forked shells like Python's multiprocessing.Queue
+switch statement NEW 2024-05-07
+Set environment variables: "env" aka "export" NEW 2024-05-09
+Start on manual NEW 2024-05-16
+Support flags in signature for pwgen NEW 2024-08-06
+Start on dev guide NEW 2024-05-16
+List initialization = L (( list a b c )) NEW 2024-06-06
+Make < an alias for print and > an alias for read NEW 2024-09-14
+Add feature to output last result value from program execution (mechanism is implemented) NEW 2024-09-14
+Support negation, unary operators + - ! NEW 2024-09-20
+See TODO in mcsh_value_init() NEW 2024-09-21
+Try GCC generics for mcsh_new(int), mcsh_new(string), etc. NEW 2024-12-06
+Buffering off by default, add option to turn it on. NEW 2024-09-21
+Intercept Ctrl-C (in readline?) NEW 2025-01-04
+Move hp stuff into separate C file 2025-09-12
+Check parser headers: many UNUSED functions (due to -Wextra in Flycheck) but are really used: NEW 2025-11-13
+
+= Eclipse =
+
+= OPTZ =
+
+Prune empty statements from blocks
+Faster mcsh_to_string that returns pointer to user buffer
+  or buffer to string data
+
+= EXOTIC =
+
+Allow blocks as 1st stmt argument - create a scope
+CPP and handle cpp linemarkers
+       But only if enabled - 'mcsh -p'
+mchp PHP-like filter mode
+    remove comments
+    <?mcsh    ?>
+    <$PWD>
+    <?if expr ?> text1 <?else> text2 <?end>
+    <?foreach token in expr ?> text <?end>
+    <?while expr ?> text <?end?>
+    <?capture cmd ?> AKA <!cmd>
+    <?eval expr> inserts return value
+
+mck - AWK-like mode
+
+filter $fp {
+  { expr } { expr }
+}
+
+mcmake - Make-like mode
+
+recipe list_out list_in { exprs }
+build list_out_item
+
+= DONE =
+
+2021-02-07 Parse "split arg" - now just need to unquote - DONE
+2021-02-07 Builtin for print - DONE
+2021-03-31 Handle build-time dependencies
+2021-04-07 Exprs - DONE
+2021-04-11 Parse $( ) - DONE
+2021-04-22 Builtin for expr/$ - DONE
+2021-04-22 if statement - DONE
+2021-04-22 Builtin for set - DONE
+2021-04-22 Resolve $x - DONE
+2021-04-23 while statement - DONE
+2021-04-26 User functions - DONE
+2021-05-22 Restructure sources - DONE
+2021-05-22 Semicolon tests - WORKS?
+2021-06-25 Rename to mcsh_vm, mcsh_system - DONE
+2021-06-28 Local variables - DONE
+2021-08-01 Basic function args - DONE ~
+2021-08-01 Basic function returns DONE ~
+2021-09-04 Command line files - DONE
+2021-10-26 sh builtin - DONE
+2021-11-08 Command substitution - DONE
+2021-12-05 Using our log - DONE
+2021-12-18 Mostly valgrind-clean - DONE
+2022-01-24 Added test to 1210-uni-1 for UTF-8 - DONE
+2022-02-24 C-style comments
+2022-02-24 C++-style comments
+2022-02-24 Comments that end w/o newline
+2022-02-25 Handle exception for exit
+2022-07-10 global variable access - Initial
+2022-07-10 environment variable access - Initial
+2022-07-21 Basic command line arguments
+2022-09-14 Command line K=V auto-assign to globals
+2022-09-21 Handle uncaught exceptions at exit
+2022-09-21 Arg parsing - signature
+2022-10-09 strstr: Use function find
+2022-10-12 Interactive mode (readline)
+2022-10-12 Substrings
+2022-10-13 Lists and Dicts L[ ] D[ ]
+2022-10-14 List join, split
+2022-11-19 Ref counting, valgrind-clean
+2022-12-06 module imports
+2022-12-06 module variable access
+2022-12-08 Errors with line numbers (good-1)
+2022-12-09 Expansion $#strlen (good-2)
+2023-03-06 Range select syntax $A[i:j]
+2023-03-06 Expansions $str/match $str/pat/sub
+           $+x (1 if x is set, else 0)
+2023-03-08 If/or/do
+2023-04-01 More loops: loop{} while{} until{} foreach{} for{} repeat{}
+2023-04-01 mcc: Handle empty input FIXED
+2023-08-09 Macros - started
+2023-08-09 inline functions in buffer.h  NEW: 2023-01-01
+2023-08-09 use lookup.h in thing_str()   NEW: 2023-08-09
+2023-08-15 mcsh_value_type_name()        NEW: 2023-08-09
+2023-08-15 Multi-line string syntax
+2023-10-07 APP: ZST/pwgen DONE
+2023-10-08 Auto function vars: $1 $2 $3 $@ $this $0 $$ $?
+2023-10-08 MCHP <$PWD>
+2023-11-11 APP: Globbing (like list expansion, arg-splitting)
+2023-11-11 List expansion $*list (arg-splitting) $=var
+2023-12-13 EXOTIC: Start on MCK pattern
+2024-01-01 Fixed up test suite
+2024-04-21 Make sure fib really works
+2024-04-21 Fib from command line
+2024-04-21 List/table search
+2024-04-21 Process control: bg jobs kill/raise
+2024-04-21 Type stuff: builtin as():PRIOR; type():NEW
+2024-04-21 Use (( ! )) for subcommand without sh aka command
+2024-04-21 $ mcsh -c "command"
+2024-05-06 source file
+2024-05-06 Fix extra copy in mcsh-script-parser.c
+2024-05-07 Range select syntax $B[1,2,5:9] # Test 6115
+2024-05-07 Range select syntax $D[key1,key2] -> dict
+2024-05-07 Ternary operator for expr
+2024-06-17 dirname basename parent resolve
+2024-06-17 ascii() etc. (Python: chr(), ord()) as string encode/decode
+2024-06-17 eval()  NEW: 2023-08-09
+2024-06-19 Eclipse rename  NEW: 2023-08-09 (skip x5)
+           rename value_construct to value_new
+2024-06-21 read input from user w/w/o readline  NEW: 2023-08-15
+2024-09-20 drop variable
+2025-03-11 Use readline in mcc: NEW: 2023-08-19
+2025-03-13 Handle exceptions when interactive NEW: 2023-09-09
