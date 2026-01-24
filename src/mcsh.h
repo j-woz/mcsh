@@ -555,13 +555,19 @@ void mcsh_status_init(mcsh_status* status);
 
 void mcsh_cmd_line_init(mcsh_cmd_line* cmd);
 
-/** Handle the options to mcsh */
+/**
+   Handle the options to mcsh.
+   Caller must own error string, size 1024.
+*/
 bool mcsh_parse_options(unsigned int argc, char* argv[],
-                        mcsh_cmd_line* cmd);
+                        mcsh_cmd_line* cmd, char* error);
 
-/** Handle the arguments to the user script */
+/**
+   Handle the arguments to the user script.
+   Caller must own error string, size 1024.
+*/
 bool mcsh_parse_args(unsigned int argc, char* argv[],
-                     mcsh_cmd_line* cmd);
+                     mcsh_cmd_line* cmd, char* error);
 
 void mcsh_handle_cmd_string(list_array* cmd_tmp,
                             mcsh_cmd_line* cmd);

@@ -125,7 +125,7 @@ mcsh_handle_cmd_string(list_array* cmd_tmp, mcsh_cmd_line* cmd)
 
 bool
 mcsh_parse_options(unsigned int argc, char* argv[],
-                   mcsh_cmd_line* cmd)
+                   mcsh_cmd_line* cmd, char* error_msg)
 {
   list_array cmd_tmp;
   list_array_init(&cmd_tmp, 0);
@@ -142,7 +142,7 @@ mcsh_parse_options(unsigned int argc, char* argv[],
         list_array_add(&cmd_tmp, strdup(optarg));
         break;
       default:
-        fail("unknown flag: %c\n", c);
+        sprintf(error_msg, "unknown flag: %c", c);
     }
   }
   mcsh_handle_cmd_string(&cmd_tmp, cmd);
@@ -155,7 +155,7 @@ mcsh_parse_options(unsigned int argc, char* argv[],
  */
 bool
 mcsh_parse_args(unsigned int argc, char* argv[],
-                mcsh_cmd_line* cmd)
+                mcsh_cmd_line* cmd, char* error_msg)
 {
   unsigned int index = 1;
   char key[1024];
@@ -186,8 +186,8 @@ mcsh_parse_args(unsigned int argc, char* argv[],
     FILE* fp = fopen(script, "r");
     if (fp == NULL)
     {
-      printf("mcsh: could not run '%s'\n", script);
-      printf("mcsh: %s\n", strerror(errno));
+      sprintf(error_msg, "could not run '%s': %s",
+              script, strerror(errno));
       return false;
     }
     cmd->mode = MCSH_MODE_SCRIPT;
