@@ -1,8 +1,6 @@
 
 #pragma once
 
-// #incl ude "mcs h.h"  // for FlyCheck
-
 #define mcsh_resolve(_v) \
   do { if (_v->type == MCSH_VALUE_LINK) _v=_v->link; } while (0);
 
