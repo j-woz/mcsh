@@ -41,14 +41,14 @@ main(int argc, char* argv[])
   mcsh_cmd_line cmd;
   mcsh_cmd_line_init(&cmd);
 
-  char error[1024];
-  bool rc = mcsh_parse_options(argc, argv, &cmd, error);
-  if (!rc)
-  {
-    printf("mcc: option error: %s\n", error);
-    goto finalize;
-  }
-  mcsh_parse_args(argc, argv, &cmd);
+  char error_msg[1024];
+  bool rc;
+
+  rc = mcsh_parse_options(argc, argv, &cmd, error_msg);
+  MAIN_CHECK(rc, "mcc", error_msg, finalize);
+
+  rc = mcsh_parse_args(argc, argv, &cmd, error_msg);
+  MAIN_CHECK(rc, "mcc", error_msg, finalize);
 
   mcsh_value* value = NULL;
   mcsh_status status;

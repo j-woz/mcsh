@@ -23,17 +23,6 @@ static bool mcsh_start(mcsh_cmd_line* cmd, mcsh_vm* vm,
 
 static bool report_value(bool result, mcsh_value* value);
 
-#define startup_check(c, msg, label)    \
-  do {                                  \
-    if (!c) {                           \
-      exit_status = EXIT_FAILURE;       \
-      printf("mcsh: ");                 \
-      printf("%s", msg);                \
-      printf("\n");                     \
-      goto label;                       \
-    }                                   \
-  } while(0);
-
 /* static void do_result(bool result, mcsh_status* status, */
 /*                       int* exit_status); */
 
@@ -54,12 +43,12 @@ main(int argc, char* argv[])
 
   char error_msg[1024];
   rc = mcsh_parse_options(argc, argv, &cmd, error_msg);
-  startup_check(rc, error_msg, finalize);
+  MAIN_CHECK(rc, "mcsh", error_msg, finalize);
 
   if (cmd.mode == MCSH_MODE_PROTO)
   {
     rc = mcsh_parse_args(argc, argv, &cmd, error_msg);
-    startup_check(rc, error_msg, finalize);
+    MAIN_CHECK(rc, "mcsh", error_msg, finalize);
   }
 
   mcsh_vm vm;

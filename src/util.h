@@ -10,6 +10,10 @@
               Valgrind may provide a stack trace
    - CHECKS:  These trigger return false.
               We can provide a stack trace and possibly recover
+   EXTERNAL:
+   - STARTUP CHECKS: These trigger return false.
+     User errors that occur at startup before exception handling
+     and user control have started.
    - EXCEPTIONS: User errors that the user can handle.
 */
 
@@ -28,6 +32,20 @@
 
 void show(const char* format, ...)
   __attribute__ ((format (printf, 1, 2)));
+
+/** Should be used only for startup checks in main(),
+    see module docs above.
+*/
+#define MAIN_CHECK(c, prefix, msg, label)       \
+  do {                                          \
+    if (!c) {                                   \
+      exit_status = EXIT_FAILURE;               \
+      printf("%s: ", prefix);                   \
+      printf("%s", msg);                        \
+      printf("\n");                             \
+      goto label;                               \
+    }                                           \
+  } while(0);
 
 #define CHECK_FAILED(format, args...)           \
   do {                                          \
