@@ -2499,21 +2499,24 @@ mcsh_do_foreach(mcsh_module* module, list_array* args,
   mcsh_value* name = args->data[1];
   mcsh_value* list = args->data[2];
   mcsh_value* body = args->data[3];
-  mcsh_value* value_result;
+  mcsh_value* value_result = NULL;
   printf("foreach start...\n");
   for (unsigned int i = 0; i < list->list->size; i++)
   {
     printf("foreach iteration: %u\n", i);
     mcsh_value* item = list->list->data[i];
     mcsh_set_value(module, name->string, item, status);
-    // TODO: check status
+
     mcsh_stmts_execute(module, &body->block->stmts,
                        &value_result, status);
-    printf("executed\n");
+    printf("stmts executed.\n");
+
     loop_result result = loop_check(status);
-    if (result.loop_break)  break;
-    if (result.loop_return) break;
+    if (result.loop_break)  goto loop_done;
+    if (result.loop_return) goto loop_done;
   }
+
+  loop_done:
   maybe_assign(output, value_result);
   return true;
 }
@@ -2618,11 +2621,12 @@ loop_check(mcsh_status* status)
       result.loop_break = true;
       break;
     case MCSH_CONTINUE:
-      printf("loop: caught continue:\n");
+      printf("loop_check: caught continue:\n");
       status->code = MCSH_OK;
       break;
     case MCSH_EXCEPTION:
-      printf("loop: hit exception: '%s'\n", status->exception->tag);
+      printf("loop_check: hit exception: '%s'\n",
+             status->exception->tag);
       result.loop_return = true;
       break;
     case MCSH_EXIT:
