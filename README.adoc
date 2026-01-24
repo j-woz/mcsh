@@ -75,6 +75,13 @@ print $x
 
 === Loops
 
+==== do
+
+==== for
+
+==== foreach
+
+
 === Defining functions
 
 == Functions
