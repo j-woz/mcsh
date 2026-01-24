@@ -2125,6 +2125,7 @@ add_word_split(list_array* args, mcsh_value* value)
   switch (value->type)
   {
     case MCSH_VALUE_STRING:
+      fail("TODO word split string");
       break;
     case MCSH_VALUE_LIST:
       add_word_split_list(args, value);
