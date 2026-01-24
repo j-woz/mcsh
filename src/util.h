@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "strlcpyj.h"
+
 #define UNUSED   __attribute__((unused))
 #define NORETURN __attribute__((noreturn))
 
@@ -219,8 +221,9 @@ void fail(const char* fmt, ...);
 #define copy(string, a, n) \
   { memcpy(string, a, n); string += n; }
 /// Append plain string
+// System strlcpy() does not work on Shade GCC 13.3.0
 #define append(string, a, n) \
-  do { string += strlcpy(string, a, n); } while (0);
+  do { string += strlcpyj(string, a, n); } while (0);
 /// Append Formatted string
 #define appendf(string, args...) \
   string += sprintf(string, ## args)
