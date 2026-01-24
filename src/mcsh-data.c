@@ -252,8 +252,8 @@ mcsh_assign_specials(mcsh_vm* vm, strmap* parameters)
 
 typedef enum
 {
-  CONTIG_INTEGERS,
-  CONTIG_STRINGS
+  CONTIG_STRINGS  = 1,
+  CONTIG_INTEGERS = 2
 } contig_type;
 
 typedef struct
@@ -261,6 +261,9 @@ typedef struct
   contig_type type;
   union
   {
+    // CONTIG_STRINGS:
+    // May be a list of keys in the future
+    char* key;
     // CONTIG_INTEGERS:
     struct
     {
@@ -272,9 +275,6 @@ typedef struct
       unsigned int end_set    : 1;
       unsigned int stride_set : 1;
     };
-    // CONTIG_STRINGS:
-    // May be a list of keys in the future
-    char* key;
   };
 } contig;
 
@@ -379,7 +379,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   {
     variable v;
     variable_parse(ctx, &v, &token[1]);
-    LOG(MCSH_LOG_DATA, MCSH_DEBUG, "name:  '%s' type=%i",
+    LOG(MCSH_LOG_DATA, MCSH_INFO, "name:  '%s' type=%i",
         v.name, v.type);
     size_t index;
     if (is_integer(v.name, &index))
@@ -402,6 +402,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     else
     {
       rc = mcsh_stack_search(ctx->entry, v.name, &value);
+      mcsh_value_debug(value);
     }
     if (v.expander.type == EXPANDER_TEST &&
         ! v.subscripted)
@@ -442,6 +443,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   {
     // Return PAIR
     // Why return pair? 2025-09-17
+    // For arg-splitting! 2026-01-23
     valgrind_fail_msg("NYI");
   }
   */
@@ -495,6 +497,7 @@ is_glob(const char* token)
 /* } */
 
 /* while (true) */
+
 /* { */
 /*   struct dirent* E = readdir(dir); */
 /*   if (E == NULL) break; */
@@ -543,7 +546,25 @@ expand_test(bool found)
 static void
 variable_print(variable* v)
 {
-  printf("variable '%s'\n", v->name);
+  #define VARIABLE_PRINT_MAX 1024
+  char t[VARIABLE_PRINT_MAX] = "";
+  char* p = &t[0];
+  appendf(p, "variable: '%s'", v->name);
+  if (v->subscripted)
+  {
+    append(p, "[", VARIABLE_PRINT_MAX);
+    int n = list_array_size(&v->subscript.contigs);
+    for (int i = 0; i < n; i++)
+    {
+      contig* c = list_array_get(&v->subscript.contigs, i);
+      if (c->type == CONTIG_STRINGS)
+      {
+        append(p, c->key, VARIABLE_PRINT_MAX);
+      }
+    }
+    append(p, "]", VARIABLE_PRINT_MAX);
+  }
+  printf("%s\n", t);
 }
 
 static bool parse_expander(char s, expander_type* type);
@@ -612,6 +633,8 @@ variable_parse(context* ctx, variable* v, const char* s)
     v->type = VARIABLE_SCALAR;
     strcpy(v->name, s);
   }
+  printf("variable_parse():\n");
+  variable_print(v);
   return true;
 }
 
@@ -676,6 +699,7 @@ static bool parse_subscript2(context* ctx,
 static bool
 parse_contig(context* ctx, subscript* ss, const char* spec)
 {
+  printf("parse_contig\n");
   // True if this is the last contig:
   bool done = false;
   const char* p   = spec;
@@ -683,6 +707,7 @@ parse_contig(context* ctx, subscript* ss, const char* spec)
   const char* end = spec + strlen(spec);
   do
   {
+    // MIXING UP SPEC AND PARSED SUBSCRIPT
     char* q = strchrnul(p, ',');
     if (q == end) done = true;
     const char* colon = strchr(p, ':');
@@ -723,6 +748,7 @@ parse_subscript1(context* ctx,
   {
     c->type = CONTIG_STRINGS;
     c->key  = strndup(value->string, n);
+    printf("subscript1: n=%zi key: '%s'\n", n, c->key);
   }
   return true;
 }
@@ -1062,6 +1088,7 @@ static bool eval_table_1(context* ctx, variable* v, struct table* T,
   contig* c = v->subscript.contigs.data[0];
   valgrind_assert(c->type == CONTIG_STRINGS);
   mcsh_value* result;
+  printf("search: key='%s'\n", c->key);
   table_search(T, c->key, (void**) &result);
   subscript_eval_expander(v, c, result, &result, ctx->status);
   *output = result;
@@ -1095,7 +1122,9 @@ subscript_eval_expander(variable* v, contig* c, mcsh_value* found,
 {
   if (v->expander.type == EXPANDER_TEST)
   {
-    *result = mcsh_value_new_int(found != NULL);
+    int c = (found != NULL);
+    // printf("eval_expander TEST: %i\n", c);
+    *result = mcsh_value_new_int(c);
     v->expander.type = EXPANDER_NONE;
   }
   else
@@ -1105,6 +1134,8 @@ subscript_eval_expander(variable* v, contig* c, mcsh_value* found,
              c->key, v->name);
     *result = found;
   }
+  // printf("expander: \n");
+  // mcsh_value_debug(*result);
   return true;
 }
 
