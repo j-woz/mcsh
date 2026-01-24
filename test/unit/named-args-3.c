@@ -46,8 +46,10 @@ main()
   list_array_add (&A, &z);
   list_array_add (&A, &y);
 
+  mcsh_status status;
   mcsh_parameters P;
-  mcsh_parameterize(&sg, &A, &P);
+  mcsh_parameterize(&sg, &A, &P, &status);
+  valgrind_assert(status.code != MCSH_OK);
 
   mcsh_parameters_print(&P);
 
@@ -55,5 +57,5 @@ main()
   mcsh_parameters_finalize(&P);
   mcsh_signature_finalize(&sg);
 
-  return 0;
+  return EXIT_SUCCESS;
 }

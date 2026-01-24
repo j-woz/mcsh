@@ -37,8 +37,10 @@ main()
   mcsh_arg_init(&x, NULL, &v_x);
   mcsh_arg_init(&y, NULL, &v_y);
 
+  mcsh_status status;
   mcsh_parameters P;
-  mcsh_parameterize(&sg, &A, &P);
+  mcsh_parameterize(&sg, &A, &P, &status);
+  valgrind_assert(status.code != MCSH_OK);
 
   mcsh_parameters_print(&P);
 
