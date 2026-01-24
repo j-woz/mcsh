@@ -1972,6 +1972,7 @@ static void
 build_keywords(char* keyword_string)
 {
   char* p = keyword_string;
+  bzero(p, KEYWORD_TOTAL);
   int i = 0;
   size_t space = KEYWORD_TOTAL;
   *p = ' ';
