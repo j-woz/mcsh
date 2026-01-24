@@ -1367,9 +1367,9 @@ void
 mcsh_value_grab(mcsh_logger* logger, mcsh_value* value)
 {
   valgrind_assert(value != NULL);
+  // Log before attempting to access:
+  LOG(MCSH_LOG_MEM, MCSH_INFO, "grab: %p %i", value, value->refs+1);
   value->refs++;
-  mcsh_log(logger, MCSH_LOG_MEM, MCSH_INFO,
-           "grab: %p %i", value, value->refs);
 }
 
 void
@@ -1380,8 +1380,7 @@ mcsh_value_drop(mcsh_logger* logger, mcsh_value* value)
                       "drop(): value %p refs == %i",
                       value, value->refs);
   value->refs--;
-  mcsh_log(logger, MCSH_LOG_MEM, MCSH_INFO,
-           "drop: %p %i", value, value->refs);
+  LOG(MCSH_LOG_MEM, MCSH_INFO, "drop: %p %i", value, value->refs);
   if (value->refs == 0)
     mcsh_value_free(logger, value);
 }
