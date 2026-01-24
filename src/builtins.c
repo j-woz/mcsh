@@ -675,6 +675,7 @@ builtin_expr(mcsh_bb* bb)
 static bool
 builtin_set(mcsh_bb* bb)
 {
+  mcsh_logger* logger = &bb->module->vm->logger;
   mcsh_value* target = bb->args->data[1];
   buffer b;
   buffer_init(&b, 16);
@@ -683,11 +684,14 @@ builtin_set(mcsh_bb* bb)
                       "type: %i", target->type);
   char* name = target->string;
   mcsh_value* value = bb->args->data[2];
+  // mcsh_value_debug(value);
   // printf("set type: %i\n", value->type);
   // mcsh_value* clone = mcsh_value_clone(value);
   /* mcsh_log(&bb->module->vm->logger, MCSH_LOG_DATA, MCSH_LOG_INFO, */
   /*          "clone: %p"); */
   bool rc = mcsh_set_value(bb->module, name, value, bb->status);
+  // Need to grab when doing: = x $T[$k]
+  mcsh_value_grab(logger, value);
   // TODO: check status
   // printf("value: %p\n", value);
   maybe_assign(bb->output, value);
