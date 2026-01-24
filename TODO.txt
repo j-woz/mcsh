@@ -116,6 +116,7 @@ Buffering off by default, add option to turn it on. NEW 2024-09-21
 Intercept Ctrl-C (in readline?) NEW 2025-01-04
 Move hp stuff into separate C file 2025-09-12
 Check parser headers: many UNUSED functions (due to -Wextra in Flycheck) but are really used: NEW 2025-11-13
+Revisit arg-splitting- only implemented for globs so far NEW 2026-01-23
 
 = Eclipse =
 
