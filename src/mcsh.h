@@ -336,6 +336,7 @@ void mcsh_parameters_finalize(mcsh_parameters* P);
 
 extern mcsh_value mcsh_null;
 
+/** See also mcsh_value_debug() */
 size_t mcsh_to_string(mcsh_logger* logger,
                       char* result, size_t max,
                       const mcsh_value* value);
@@ -754,6 +755,7 @@ mcsh_value* mcsh_value_new_activation(mcsh_activation* activation);
 
 mcsh_value* mcsh_value_clone(mcsh_value* value);
 
+/** See also mcsh_to_string() */
 void mcsh_value_debug(mcsh_value* value);
 
 void mcsh_value_assign(mcsh_value* target, mcsh_value* value);
