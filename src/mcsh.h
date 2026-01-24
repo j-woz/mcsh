@@ -754,6 +754,8 @@ mcsh_value* mcsh_value_new_activation(mcsh_activation* activation);
 
 mcsh_value* mcsh_value_clone(mcsh_value* value);
 
+void mcsh_value_debug(mcsh_value* value);
+
 void mcsh_value_assign(mcsh_value* target, mcsh_value* value);
 
 void mcsh_table_add(mcsh_logger* logger,

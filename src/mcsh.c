@@ -1326,6 +1326,43 @@ mcsh_value_clone(mcsh_value* value)
   return result;
 }
 
+/**
+   Like mcsh_to_string() but includes internals like
+   pointer, ref count, type, value, etc.
+*/
+void
+mcsh_value_debug(mcsh_value* value)
+{
+  // TODO:
+  /*   double number; */
+  /*   struct table* table; */
+  /*   mcsh_block* block; */
+  /*   mcsh_function* function; */
+  /*   mcsh_module* module; */
+  /*   mcsh_value* link; */
+  /*   mcsh_activation* activation; */
+  #define VALUE_DEBUG_MAX 64
+  char t[VALUE_DEBUG_MAX];
+  mcsh_value_type_name(value->type, t);
+  char v[VALUE_DEBUG_MAX];
+  switch (value->type)
+  {
+    case MCSH_VALUE_STRING:
+      strncpy(v, value->string, VALUE_DEBUG_MAX-1);
+      break;
+    case MCSH_VALUE_INT:
+      sprintf(v, "%"PRId64, value->integer);
+      break;
+    case MCSH_VALUE_LIST:
+      sprintf(v, "[%"PRId64"]", list_array_size(value->list));
+      break;
+    default:
+      strcpy(v, "OTHER");
+  }
+
+  printf("value: %p [%i] %s=%s\n", value, value->refs, t, v);
+}
+
 void
 mcsh_value_grab(mcsh_logger* logger, mcsh_value* value)
 {
