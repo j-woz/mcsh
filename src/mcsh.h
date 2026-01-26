@@ -761,6 +761,8 @@ void mcsh_value_debug(mcsh_value* value);
 
 void mcsh_value_assign(mcsh_value* target, mcsh_value* value);
 
+int mcsh_table_size(mcsh_value* table);
+
 void mcsh_table_add(mcsh_logger* logger,
                     mcsh_value* table,
                     mcsh_value* key, mcsh_value* value);

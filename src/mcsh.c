@@ -1356,6 +1356,9 @@ mcsh_value_debug(mcsh_value* value)
     case MCSH_VALUE_LIST:
       sprintf(v, "[%"PRId64"]", list_array_size(value->list));
       break;
+    case MCSH_VALUE_TABLE:
+      sprintf(v, "[%i]", mcsh_table_size(value));
+      break;
     default:
       strcpy(v, "OTHER");
   }
@@ -1449,6 +1452,13 @@ mcsh_table_add(mcsh_logger* logger,
   char k[max];
   mcsh_to_string(logger, k, max, key);
   table_add(table->table, k, value);
+}
+
+int
+mcsh_table_size(mcsh_value* table)
+{
+  assert(table->type == MCSH_VALUE_TABLE);
+  return table_size(table->table);
 }
 
 static mcsh_function* mcsh_function_new(mcsh_module* module,
