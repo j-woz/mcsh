@@ -12,6 +12,8 @@ AM_LDFLAGS = -l readline
 
 all: $(bin_PROGRAMS)
 
+check_PROGRAMS = $(C_TESTS)
+
 C_TESTS = test/util/strlcpy-1.x \
 	  test/util/strmap-1.x \
 	  test/util/strmap-2.x \
@@ -30,8 +32,7 @@ C_TESTS = test/util/strlcpy-1.x \
 	  test/unit/named-args-3.x \
 	  test/unit/arg-extras.x
 
-bin_PROGRAMS = bin/mcsh bin/mcc bin/mcpp bin/mchp \
-               $(C_TESTS)
+bin_PROGRAMS = bin/mcsh bin/mcc bin/mcpp bin/mchp
 
 src/lex.mcs_expr_.c: src/mcsh-expr-lexer.l src/mcsh-expr-grammar.h
 	flex -o $@ $<
