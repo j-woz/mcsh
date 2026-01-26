@@ -356,7 +356,7 @@ mcsh_token_to_value(mcsh_logger* logger,
   ctx.logger = logger;
   ctx.entry = entry;
   ctx.status = status;
-  LOG(MCSH_LOG_DATA, MCSH_INFO, "token_to_value: '%s'", token);
+  LOG(MCSH_LOG_DATA, MCSH_DEBUG, "token_to_value: '%s'", token);
   return to_value(&ctx, token, output);
 }
 
@@ -391,8 +391,8 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   {
     variable v;
     variable_parse(ctx, &v, &token[1]);
-    LOG(MCSH_LOG_DATA, MCSH_INFO, "name:  '%s' type=%i",
-        v.name, v.type);
+    LOG(MCSH_LOG_DATA, MCSH_DEBUG,
+        "to_value(): name:  '%s' type=%i", v.name, v.type);
     size_t index;
     if (is_integer(v.name, &index))
     {
@@ -1257,7 +1257,9 @@ static mcsh_value* expand_regex_replace(mcsh_vm* vm,
 static mcsh_value*
 expand_regex(mcsh_vm* vm, variable* v, mcsh_value* value)
 {
-  printf("expand_regex: text: '%s'\n", v->expander.text);
+  mcsh_logger* logger = &vm->logger;
+  LOG(MCSH_LOG_DATA, MCSH_INFO,
+      "expand_regex: text: '%s'", v->expander.text);
   char* p = strchr(v->expander.text, '/');
   mcsh_value* result;
   if (p == NULL)

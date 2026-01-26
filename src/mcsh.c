@@ -1891,11 +1891,8 @@ mcsh_stmt_execute(mcsh_module* module, mcsh_stmt* stmt,
   bool rc;
 
   char* command = command_value->string;
-  mcsh_log(logger, MCSH_LOG_CONTROL, MCSH_DEBUG,
-           "command string: %p '%s'", command, command);
-
-  mcsh_log(logger, MCSH_LOG_CONTROL, MCSH_DEBUG,
-           "command args: %zi", values.size);
+  LOG(MCSH_LOG_CONTROL, MCSH_INFO,  "command: %s",  command);
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "argc:    %zi", values.size);
 
   if (is_keyword(command))
   {
@@ -1913,9 +1910,9 @@ mcsh_stmt_execute(mcsh_module* module, mcsh_stmt* stmt,
   }
   else if (mcsh_builtins_has(command))
   {
-    LOG(MCSH_LOG_CONTROL, MCSH_WARN, "builtin execute: %s", command);
+    LOG(MCSH_LOG_CONTROL, MCSH_INFO, "builtin execute: %s", command);
     mcsh_builtins_execute(module, &values, output, status);
-    LOG(MCSH_LOG_CONTROL, MCSH_WARN, "builtin done: %s", command);
+    LOG(MCSH_LOG_CONTROL, MCSH_INFO, "builtin done: %s", command);
   }
   else
   {
@@ -2065,7 +2062,6 @@ do_token(mcsh_logger* logger, mcsh_module* module,
                                status);
       CHECK(rc, "could not convert token to string: '%s'",
             token->data.token->text);
-      // printf("TOKEN: '%s'\n", token->data.token->text);
       if (value->word_split)
         add_word_split(values, value);
       else
@@ -2093,19 +2089,19 @@ do_token(mcsh_logger* logger, mcsh_module* module,
         LOG(MCSH_LOG_EVAL, MCSH_INFO, "subfun: exception!");
         return true;
       }
-      LOG(MCSH_LOG_EVAL, MCSH_INFO, "subfun value: %p", value);
+      LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "subfun value: %p", value);
       list_array_add(values, value);
       if (value->type == MCSH_VALUE_STRING)
       {
-        LOG(MCSH_LOG_EVAL, MCSH_INFO,
+        LOG(MCSH_LOG_EVAL, MCSH_TRACE,
             "subfun string: '%s'", value->string);
       }
       else
       {
-        LOG(MCSH_LOG_EVAL, MCSH_INFO,
+        LOG(MCSH_LOG_EVAL, MCSH_TRACE,
             "subfun result: non-string");
       }
-      LOG(MCSH_LOG_EVAL, MCSH_INFO, "subfun execute done.");
+      LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "subfun execute done.");
       break;
     default:
       bad_token(logger, token);
@@ -2216,7 +2212,7 @@ mcsh_stack_search(mcsh_logger* logger,
                   mcsh_value** result)
 {
   LOG(MCSH_LOG_DATA, MCSH_DEBUG,
-      "stack_search(): %zi:%zi start:  '%s'\n",
+      "stack_search(): %zi:%zi start:  '%s'",
       entry->depth, entry->id, name);
 
   bool modules_only = false;
@@ -2276,8 +2272,7 @@ mcsh_do_if(mcsh_module* module, list_array* args,
            UNUSED mcsh_value** output, UNUSED mcsh_status* status)
 {
   mcsh_logger* logger = &module->vm->logger;
-  LOG(MCSH_LOG_CONTROL, MCSH_INFO,
-      "mcsh_do_if(%zi) ...", args->size);
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "do_if [%zi] ...", args->size);
 
   unsigned int counter = 0;
   // Normally, we have a condition to check -
@@ -2291,9 +2286,6 @@ mcsh_do_if(mcsh_module* module, list_array* args,
     mcsh_value* keyword = args->data[counter++];
     char t[64];
     mcsh_to_string(logger, t, 64, keyword);
-    // printf("type s: %s\n", t);
-
-    // printf("type: %i\n", keyword->type);
     valgrind_assert(keyword->type == MCSH_VALUE_STRING);
 
     if (strcmp(keyword->string, "or") == 0)  // or else
@@ -2307,7 +2299,6 @@ mcsh_do_if(mcsh_module* module, list_array* args,
       condition = args->data[counter++];
       valgrind_assert_msg(condition->type == MCSH_VALUE_BLOCK,
                         "if condition must be a block!");
-      // printf("actual condition. \n");
     }
 
     // printf("condition_or: %i\n", condition_or);
@@ -2323,12 +2314,12 @@ mcsh_do_if(mcsh_module* module, list_array* args,
                          &value_condition, status);
       if (status->code == MCSH_EXCEPTION) return true;
       mcsh_value_integer(value_condition, &condition_result);
-      LOG(MCSH_LOG_CONTROL, MCSH_INFO, "condition: %"PRId64,
+      LOG(MCSH_LOG_CONTROL, MCSH_TRACE, "condition: %"PRId64,
           condition_result);
     }
     if (condition_result != 0)
     {
-      LOG(MCSH_LOG_CONTROL, MCSH_INFO, "condition true");
+      LOG(MCSH_LOG_CONTROL, MCSH_TRACE, "condition true");
 
       mcsh_value* value_body;
       mcsh_stmts_execute(module, &body->block->stmts,
@@ -2345,7 +2336,7 @@ mcsh_do_if(mcsh_module* module, list_array* args,
     }
     if (counter >= args->size)
     {
-      LOG(MCSH_LOG_CONTROL, MCSH_INFO, "if exhausted.");
+      LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "if exhausted.");
       break;
     }
   }
@@ -2506,28 +2497,28 @@ static bool
 mcsh_do_foreach(mcsh_module* module, list_array* args,
                 mcsh_value** output, mcsh_status* status)
 {
+  mcsh_logger* logger = &module->vm->logger;
   valgrind_assert_msg(args->size == 4, "foreach needs 4 arguments!");
   mcsh_value* name = args->data[1];
   mcsh_value* list = args->data[2];
   mcsh_value* body = args->data[3];
   mcsh_value* value_result = NULL;
-  printf("foreach start...\n");
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "foreach start...");
   for (unsigned int i = 0; i < list->list->size; i++)
   {
-    printf("foreach iteration: %u\n", i);
+    LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "foreach iteration: %u", i);
     mcsh_value* item = list->list->data[i];
     mcsh_set_value(module, name->string, item, status);
 
     mcsh_stmts_execute(module, &body->block->stmts,
                        &value_result, status);
-    printf("stmts executed.\n");
 
     loop_result result = loop_check(status);
     if (result.loop_break)  goto loop_done;
     if (result.loop_return) goto loop_done;
   }
-
   loop_done:
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "foreach done.");
   maybe_assign(output, value_result);
   return true;
 }
