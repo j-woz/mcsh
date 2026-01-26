@@ -591,7 +591,8 @@ mcsh_entry_vm(mcsh_entry* entry)
   return entry->stack->vm;
 }
 
-bool mcsh_stack_search(mcsh_entry* entry, const char* name,
+bool mcsh_stack_search(mcsh_logger* logger,
+                       mcsh_entry* entry, const char* name,
                        mcsh_value** result);
 
 void mcsh_entry_init_module(mcsh_entry* entry,

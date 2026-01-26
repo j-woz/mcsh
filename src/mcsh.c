@@ -1891,7 +1891,8 @@ mcsh_stmt_execute(mcsh_module* module, mcsh_stmt* stmt,
   {
     do_keyword(logger, module, command, &values, output, status);
   }
-  else if (mcsh_stack_search(module->vm->stack.current, command, &f))
+  else if (mcsh_stack_search(logger, module->vm->stack.current,
+                             command, &f))
     // table_search(&module->vm->globals, command, (void*) &f)
   {
     char t[64];
@@ -2202,11 +2203,13 @@ mcsh_exception_reset(mcsh_status* status)
 }
 
 bool
-mcsh_stack_search(mcsh_entry* entry, const char* name,
+mcsh_stack_search(mcsh_logger* logger,
+                  mcsh_entry* entry, const char* name,
                   mcsh_value** result)
 {
-  /* printf("stack_search(): %zi:%zi start:  '%s'\n", */
-  /*        entry->depth, entry->id, name); */
+  LOG(MCSH_LOG_DATA, MCSH_DEBUG,
+      "stack_search(): %zi:%zi start:  '%s'\n",
+      entry->depth, entry->id, name);
 
   bool modules_only = false;
   char type_name[64];
