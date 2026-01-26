@@ -591,14 +591,14 @@ builtin_plus_table(mcsh_bb* bb)
 static bool
 builtin_incr(mcsh_bb* bb)
 {
-  mcsh_log(&bb->module->vm->logger, MCSH_LOG_BUILTIN, MCSH_INFO,
-           "builtin incr ...");
+  mcsh_logger* logger = &bb->module->vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "builtin incr ...");
 
   mcsh_value* target = bb->args->data[1];
   valgrind_assert(target->type == MCSH_VALUE_STRING);
   char* name = target->string;
   mcsh_value* v;
-  mcsh_stack_search(bb->module->vm->stack.current, name, &v);
+  mcsh_stack_search(logger, bb->module->vm->stack.current, name, &v);
 
   int64_t i;
   bool rc = mcsh_value_integer(v, &i);
