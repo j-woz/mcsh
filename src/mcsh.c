@@ -1984,8 +1984,6 @@ build_keywords(char* keyword_string)
     q = p;
     if (keyword_list[i] == NULL) break;
     append(p, keyword_list[i], space);
-    // t = strlcpy(p, keyword_list[i], space);
-    // printf("t=%zu\n", t);
     space -= (p - q);
     append(p, " ", space);
     space -= 1;
