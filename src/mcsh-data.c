@@ -377,7 +377,7 @@ to_value_n(context* ctx, const char* token, size_t n,
            mcsh_value** output)
 {
   char* t = alloca(n+1);
-  strncpy(t, token, n);
+  strncpy(t, token, n+1);
   return to_value(ctx, t, output);
 }
 
