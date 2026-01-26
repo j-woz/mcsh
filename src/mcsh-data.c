@@ -369,6 +369,18 @@ static inline bool is_glob(const char* token);
 static bool do_glob(context* ctx, const char* token,
                     mcsh_value** output);
 
+static bool to_value_n(context* ctx, const char* token, size_t n,
+                       mcsh_value** output);
+
+static bool
+to_value_n(context* ctx, const char* token, size_t n,
+           mcsh_value** output)
+{
+  char* t = alloca(n+1);
+  strncpy(t, token, n);
+  return to_value(ctx, t, output);
+}
+
 static bool
 to_value(context* ctx, const char* token, mcsh_value** output)
 {
@@ -401,7 +413,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     }
     else
     {
-      rc = mcsh_stack_search(ctx->entry, v.name, &value);
+      rc = mcsh_stack_search(logger, ctx->entry, v.name, &value);
       mcsh_value_debug(value);
     }
     if (v.expander.type == EXPANDER_TEST &&
@@ -633,8 +645,8 @@ variable_parse(context* ctx, variable* v, const char* s)
     v->type = VARIABLE_SCALAR;
     strcpy(v->name, s);
   }
-  printf("variable_parse():\n");
-  variable_print(v);
+  // printf("variable_parse():\n");
+  // variable_print(v);
   return true;
 }
 
@@ -664,7 +676,7 @@ static bool parse_contig(context* ctx, subscript* ss,
 /**
    Parse subscript of form:
    [contig,contig,...]
-   where a contig one of:
+   where a contig is one of:
      single integer N
      colon-separated integer range M:N
      colon-separated strided integer range M:N:S (NYI)
@@ -675,14 +687,15 @@ static bool
 parse_subscript(context* ctx, subscript* ss, const char* spec)
 {
   mcsh_logger* logger = &ctx->entry->module->vm->logger;
-  LOG(MCSH_LOG_EVAL, MCSH_INFO, "parse_subscript(): '%s'", spec);
+  LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "parse_subscript(): '%s'", spec);
   size_t n = strlen(spec);
   valgrind_assert(spec[  0] == '[');
   valgrind_assert(spec[n-1] == ']');
   // printf("parse_subscript(): n=%zi\n", n);
   char t[n-1];
   strlcpy(t, &spec[1], n-1);
-  LOG(MCSH_LOG_EVAL, MCSH_INFO,"parse_subscript(): spec: '%s'", t);
+  // LOG(MCSH_LOG_EVAL, MCSH_DEBUG,"parse_subscript(): spec: '%s'", t);
+  // Singleton list of contigs (commas NYI)
   list_array_init(&ss->contigs, 1);
   parse_contig(ctx, ss, t);
   return true;
@@ -699,7 +712,7 @@ static bool parse_subscript2(context* ctx,
 static bool
 parse_contig(context* ctx, subscript* ss, const char* spec)
 {
-  printf("parse_contig\n");
+  printf("parse_contig: spec='%s'\n", spec);
   // True if this is the last contig:
   bool done = false;
   const char* p   = spec;
@@ -727,15 +740,12 @@ parse_contig(context* ctx, subscript* ss, const char* spec)
 
 /** Single-value subscript "[t]" of strlen n */
 static bool
-parse_subscript1(context* ctx,
-                 subscript* ss,
-                 const char* t,
-                 size_t n)
+parse_subscript1(context* ctx, subscript* ss, const char* t, size_t n)
 {
   contig* c = calloc(1, sizeof(*c));
   list_array_add(&ss->contigs, c);
   mcsh_value* value;
-  to_value(ctx, t, &value);
+  to_value_n(ctx, t, n, &value);
   if (is_integer(value->string, NULL))
   {
     c->type = CONTIG_INTEGERS;
@@ -747,8 +757,8 @@ parse_subscript1(context* ctx,
   else
   {
     c->type = CONTIG_STRINGS;
-    c->key  = strndup(value->string, n);
-    printf("subscript1: n=%zi key: '%s'\n", n, c->key);
+    c->key  = strdup(value->string);
+    // printf("subscript1: n=%zi key: '%s'\n", n, c->key);
   }
   return true;
 }
@@ -1064,7 +1074,7 @@ subscript_eval_table(context* ctx,
   mcsh_value* result;
   if (v->subscript.contigs.size == 1)
   {
-    printf("eval_table_1\n");
+    // printf("eval_table_1\n");
     variable_print(v);
     eval_table_1(ctx, v, T, &result);
   }
