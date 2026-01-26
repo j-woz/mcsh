@@ -1348,7 +1348,7 @@ mcsh_value_debug(mcsh_value* value)
   switch (value->type)
   {
     case MCSH_VALUE_STRING:
-      strncpy(v, value->string, VALUE_DEBUG_MAX-1);
+      snprintf(v, VALUE_DEBUG_MAX-1, "'%s'", value->string);
       break;
     case MCSH_VALUE_INT:
       sprintf(v, "%"PRId64, value->integer);
