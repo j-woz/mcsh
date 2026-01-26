@@ -83,6 +83,7 @@ typedef struct
   pid_t pid;
 } mcsh_logger;
 
+/// Assumes logger is a local variable
 #define LOG(cat, lvl, format...)          \
   do {                                    \
     mcsh_log(logger, cat, lvl, ##format); \
