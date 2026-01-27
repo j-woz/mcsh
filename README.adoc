@@ -118,6 +118,20 @@ Parameters are the product of applying the arguments to the signature
 ( x=1 y=2 z=3 )
 ----
 
+== Activations
+
+`$time`::
+Float in seconds.
+
+`$random`::
+Random number from 0 to 2^31-1.
+
+`$this`::
+The directory containing the main script.
+
+`$?`::
+The last exit code.
+
 == More documentation
 
 in doc/manual.adoc
