@@ -747,7 +747,20 @@ parse_subscript1(context* ctx, subscript* ss, const char* t, size_t n)
   list_array_add(&ss->contigs, c);
   mcsh_value* value;
   to_value_n(ctx, t, n, &value);
-  if (is_integer(value->string, NULL))
+  // mcsh_value_debug(value);
+  bool is_int = false;
+  switch (value->type)
+  {
+    case MCSH_VALUE_STRING:
+      is_int = is_integer(value->string, NULL);
+      break;
+    case MCSH_VALUE_INT:
+      is_int = true;
+      break;
+    default:
+      break;
+  }
+  if (is_int)
   {
     c->type = CONTIG_INTEGERS;
     int64_t v;
@@ -757,6 +770,7 @@ parse_subscript1(context* ctx, subscript* ss, const char* t, size_t n)
   }
   else
   {
+    valgrind_assert(value->type == MCSH_VALUE_STRING);
     c->type = CONTIG_STRINGS;
     c->key  = strdup(value->string);
     // printf("subscript1: n=%zi key: '%s'\n", n, c->key);
