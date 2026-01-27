@@ -1376,13 +1376,15 @@ mcsh_drop_env(mcsh_vm* vm, const char* name)
 bool
 mcsh_data_special(mcsh_vm* vm, const char* name, mcsh_value** result)
 {
+  mcsh_logger* logger = &vm->logger;
+
   void* tmp;
   if (! table_search(vm->data->specials, name, &tmp))
     return false;
 
   *result = tmp;
-  mcsh_log(&vm->logger, MCSH_LOG_DATA, MCSH_INFO,
-           "found special: '%s' -> %p\n", name, *result);
+  LOG(MCSH_LOG_DATA, MCSH_INFO,
+      "found special: '%s' -> %p", name, *result);
 
   return true;
 }
