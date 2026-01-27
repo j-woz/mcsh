@@ -52,9 +52,9 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
-AC_CHECK_FUNCS([dup2 getcwd gettimeofday localtime_r memset regcomp])
-AC_CHECK_FUNCS([strchr strdup strerror strfromd strlcpy strstr])
-AC_CHECK_FUNCS([strtol])
+AC_CHECK_FUNCS([bzero dup2 getcwd gettimeofday localtime_r memmove])
+AC_CHECK_FUNCS([memset realpath regcomp strchr strdup strerror])
+AC_CHECK_FUNCS([strfromd strlcpy strndup strstr strtol])
 
 # Checks for libraries.
 AC_ARG_ENABLE([readline],
