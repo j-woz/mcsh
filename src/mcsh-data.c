@@ -1247,8 +1247,8 @@ expand_view_table(mcsh_vm* vm, mcsh_value* value)
 
 
 static mcsh_value* expand_regex_test(mcsh_vm* vm,
-                                        variable* v,
-                                        mcsh_value* value);
+                                     variable* v,
+                                     mcsh_value* value);
 static mcsh_value* expand_regex_replace(mcsh_vm* vm,
                                         variable* v,
                                         mcsh_value* value,
