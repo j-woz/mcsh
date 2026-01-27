@@ -414,7 +414,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     else
     {
       rc = mcsh_stack_search(logger, ctx->entry, v.name, &value);
-      mcsh_value_debug(value);
+      // mcsh_value_debug(value);
     }
     if (v.expander.type == EXPANDER_TEST &&
         ! v.subscripted)
