@@ -2025,7 +2025,6 @@ do_keyword(mcsh_logger* logger, mcsh_module* module,
   else if (strcmp(command, "for") == 0)
   {
     mcsh_do_for(module, values, output, status);
-    printf("do_for returned: *output=%p\n", *output);
   }
   else if (strcmp(command, "repeat") == 0)
   {
@@ -2527,6 +2526,7 @@ static bool
 mcsh_do_for(mcsh_module* module, list_array* args,
             mcsh_value** output, mcsh_status* status)
 {
+  mcsh_logger* logger = &module->vm->logger;
   valgrind_assert_msg(args->size == 5, "for needs 5 arguments!");
   // for { init } { test } { post } { body }
   mcsh_value* init = args->data[1];
@@ -2534,30 +2534,30 @@ mcsh_do_for(mcsh_module* module, list_array* args,
   mcsh_value* post = args->data[3];
   mcsh_value* body = args->data[4];
   mcsh_value* value_post, * value_result;
-  printf("for: start...\n");
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "for: start...");
   mcsh_stmts_execute(module, &init->block->stmts,
                      &value_result, status);
 
   while (true)
   {
-    printf("for: test ...\n");
+    LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "for: test...");
     mcsh_stmts_execute(module, &test->block->stmts,
                        &value_result, status);
     int64_t v;
     mcsh_value_integer(value_result, &v);
     if (v == 0) break;
 
-    printf("for: iteration ...\n");
+    LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "for: iteration ...");
     mcsh_stmts_execute(module, &body->block->stmts,
                        &value_result, status);
-    printf("executed\n");
+
     loop_result result = loop_check(status);
     if (result.loop_break) break;
 
     mcsh_stmts_execute(module, &post->block->stmts,
                        &value_post, status);
   }
-  printf("for: done.\n");
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "for: done.");
   maybe_assign(output, value_result);
   return true;
 }
