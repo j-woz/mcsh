@@ -3,8 +3,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUFFIXES = .c .h .y .l
 
-AM_CPPFLAGS = -I src
-AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always
+AM_CPPFLAGS = -I . -I src
+AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always -O0
 # -pedantic
 AM_YFLAGS = -d
 AM_LDFLAGS = -l readline
@@ -38,13 +38,13 @@ src/lex.mcs_expr_.c: src/mcsh-expr-lexer.l src/mcsh-expr-grammar.h
 	flex -o $@ $<
 
 src/mcsh-expr-lexer.o: src/lex.mcs_expr_.c
-	gcc $(CFLAGS) -c -o $@ $<
+	gcc $(AM_CPPFLAGS) $(AM_CFLAGS) -c -o $@ $<
 
 src/lex.mcs_script_.c: src/mcsh-script-lexer.l src/mcsh-script-grammar.h
 	flex -o $@ $<
 
 src/mcsh-script-lexer.o: src/lex.mcs_script_.c
-	gcc $(CFLAGS) -c -o $@ $<
+	gcc $(AM_CPPFLAGS) $(AM_CFLAGS) -c -o $@ $<
 
 bin_mcc_SOURCES  = src/mcsh-calc.c
 bin_mcsh_SOURCES = src/mcsh-main.c
