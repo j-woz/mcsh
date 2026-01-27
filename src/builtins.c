@@ -1187,6 +1187,65 @@ builtin_find(mcsh_bb* bb)
   return true;
 }
 
+static bool sort_type_check(mcsh_bb* bb, list_array* L,
+                            mcsh_value_type* type);
+
+static int cmp_value_int(const void* a0, const void* a1);
+
+static bool
+builtin_sort(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_EQ(1);
+  mcsh_value* target = bb->args->data[1];
+  mcsh_resolve(target);
+  EXCEPTION_SUBARG_TYPE("sort", target, MCSH_VALUE_LIST, 1);
+
+  list_array* L = target->list;
+  if (list_array_size(L) == 0) goto done;
+
+  mcsh_value_type type = MCSH_VALUE_NULL;
+  sort_type_check(bb, L, &type);
+  PROPAGATE(bb->status);
+
+  switch (type)
+  {
+    case MCSH_VALUE_INT:
+      qsort(L->data, L->size, sizeof(void*), cmp_value_int);
+      break;
+    default:
+      RAISE(bb->status, NULL, 0, "mcsh.type",
+            "sort: list not of sortable type!");
+  }
+
+  done:
+  bb->status->code = MCSH_OK;
+  return true;
+}
+
+static bool
+sort_type_check(mcsh_bb* bb, list_array* L, mcsh_value_type* type)
+{
+  mcsh_value* v0 = list_array_get(L, 0);
+  mcsh_value_type t0 = v0->type;
+  for (size_t i = 0; i < list_array_size(L); i++)
+  {
+    mcsh_value* v = list_array_get(L, i);
+    RAISE_IF(v->type != t0, bb->status, NULL, 0, "mcsh.type",
+             "sort: list not of consistent type in entry %zi", i);
+  }
+  *type = t0;
+  return true;
+}
+
+/** For qsort() */
+static int
+cmp_value_int(const void* a0, const void* a1)
+{
+  mcsh_value* v0 = *(mcsh_value**) a0;
+  mcsh_value* v1 = *(mcsh_value**) a1;
+  return (v0->integer - v1->integer);
+}
+
 static bool
 builtin_substring(mcsh_bb* bb)
 {
@@ -1443,6 +1502,7 @@ builtins_add()
   table_add(mcsh.builtins, "as",        builtin_as);
   table_add(mcsh.builtins, "string",    builtin_string);
   table_add(mcsh.builtins, "find",      builtin_find);
+  table_add(mcsh.builtins, "sort",      builtin_sort);
   table_add(mcsh.builtins, "substring", builtin_substring);
   table_add(mcsh.builtins, "sh",        builtin_sh);
   table_add(mcsh.builtins, "list",      builtin_list_create);
