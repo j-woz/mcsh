@@ -43,7 +43,12 @@ activation_time_set(UNUSED mcsh_entry* entry,
 static void
 activation_random_init(void)
 {
-  srandom(42);
+  // Fixed random seed:
+  // srandom(42);
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  pid_t pid = getpid();
+  srandom(tv.tv_sec + pid);
 }
 
 static bool
