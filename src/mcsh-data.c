@@ -461,7 +461,14 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   */
   else
   {
-    value = mcsh_value_new_string(ctx->entry->module->vm, token);
+    // Handle literals!
+    // TODO: Handle float literals
+    size_t integer;
+    if (is_integer(token, &integer)) {
+      value = mcsh_value_new_int(integer);
+    } else {
+      value = mcsh_value_new_string(ctx->entry->module->vm, token);
+    }
   }
   end:
   *output = value;
