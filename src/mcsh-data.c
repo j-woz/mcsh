@@ -712,7 +712,8 @@ static bool parse_subscript2(context* ctx,
 static bool
 parse_contig(context* ctx, subscript* ss, const char* spec)
 {
-  printf("parse_contig: spec='%s'\n", spec);
+  mcsh_logger* logger = &ctx->entry->module->vm->logger;
+  LOG(MCSH_LOG_DATA, MCSH_TRACE, "parse_contig: spec='%s'", spec);
   // True if this is the last contig:
   bool done = false;
   const char* p   = spec;
