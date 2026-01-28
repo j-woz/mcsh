@@ -4,7 +4,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 SUFFIXES = .c .h .y .l
 
 AM_CPPFLAGS = -I . -I src
-AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always -O0
+# Provide -O0 at configure time
+AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always
 # -pedantic
 AM_YFLAGS = -d
 AM_LDFLAGS = -l readline
