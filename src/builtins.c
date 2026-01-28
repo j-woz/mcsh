@@ -386,7 +386,6 @@ builtin_type(mcsh_bb* bb)
   return true;
 }
 
-
 static bool builtin_as_int(mcsh_bb* bb);
 
 static bool
@@ -1043,8 +1042,8 @@ builtin_os_rename(mcsh_bb* bb)
   char* a_name = a->string;
   char* b_name = b->string;
 
-  mcsh_logger* logger = &bb->module->vm->logger;
-  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "mv: '%s' to '%s'",
+  UNUSED mcsh_logger* logger = &bb->module->vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "mv: '%s' to '%s'\n",
                                         a_name, b_name);
   int rc = rename(a_name, b_name);
 
