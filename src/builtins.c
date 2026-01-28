@@ -891,6 +891,7 @@ static bool builtin_os_pid(mcsh_bb* bb);
 static bool builtin_os_dirname(mcsh_bb* bb);
 static bool builtin_os_basename(mcsh_bb* bb);
 static bool builtin_os_resolve(mcsh_bb* bb);
+static bool builtin_os_rename(mcsh_bb* bb);
 
 static bool
 builtin_os(mcsh_bb* bb)
@@ -918,6 +919,8 @@ builtin_os(mcsh_bb* bb)
     rc = builtin_os_basename(bb);
   else if (strcmp(subcommand->string, "resolve") == 0)
     rc = builtin_os_resolve(bb);
+  else if (strcmp(subcommand->string, "mv") == 0)
+      rc = builtin_os_rename(bb);
 
   else
     RAISE(bb->status, NULL, 0, "mcsh.exception.invalid_arguments",
@@ -1017,9 +1020,30 @@ builtin_os_resolve(mcsh_bb* bb)
   char b[PATH_MAX];
   char* p = realpath(t, b);
   if (p == NULL)
-    RAISE(bb->status, NULL, 0, "mcsh.path_error",
+    RAISE(bb->status, NULL, 0, "mcsh.os",
           "could not resolve: '%s' %s", t, strerror(errno));
   *bb->output = mcsh_value_new_string(bb->module->vm, b);
+  return true;
+}
+
+static bool
+builtin_os_rename(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_EQ(3);
+  mcsh_value* a = bb->args->data[2];
+  mcsh_value* b = bb->args->data[3];
+  TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 2,
+             "argument must be a string filename");
+  TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 3,
+             "argument must be a string filename");
+
+  int rc = rename(a->string, b->string);
+
+  RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
+           "could not rename: '%s' to '%s' : %s",
+           a->string, b->string, strerror(errno));
+
+  *bb->output = mcsh_value_new_int(0);
   return true;
 }
 
