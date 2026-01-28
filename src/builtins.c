@@ -892,6 +892,7 @@ static bool builtin_os_dirname(mcsh_bb* bb);
 static bool builtin_os_basename(mcsh_bb* bb);
 static bool builtin_os_resolve(mcsh_bb* bb);
 static bool builtin_os_rename(mcsh_bb* bb);
+static bool builtin_os_remove(mcsh_bb* bb);
 
 static bool
 builtin_os(mcsh_bb* bb)
@@ -921,6 +922,8 @@ builtin_os(mcsh_bb* bb)
     rc = builtin_os_resolve(bb);
   else if (strcmp(subcommand->string, "mv") == 0)
       rc = builtin_os_rename(bb);
+  else if (strcmp(subcommand->string, "rm") == 0)
+      rc = builtin_os_remove(bb);
 
   else
     RAISE(bb->status, NULL, 0, "mcsh.exception.invalid_arguments",
@@ -1048,6 +1051,27 @@ builtin_os_rename(mcsh_bb* bb)
   RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
            "could not rename: '%s' to '%s' : %s",
            a_name, b_name, strerror(errno));
+
+  *bb->output = mcsh_value_new_int(0);
+  return true;
+}
+
+static bool
+builtin_os_remove(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_EQ(2);
+  mcsh_value* v = bb->args->data[2];
+  TYPE_CHECK(v, MCSH_VALUE_STRING, bb->status, "rm", 2,
+             "argument must be a string filename");
+
+  mcsh_logger* logger = &bb->module->vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "rm: '%s'", v->string);
+
+  int rc = unlink(v->string);
+
+  RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
+           "could not remove: '%s' : %s",
+           v->string, strerror(errno));
 
   *bb->output = mcsh_value_new_int(0);
   return true;
