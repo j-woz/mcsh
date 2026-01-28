@@ -110,8 +110,8 @@ List initialization = L (( list a b c )) NEW 2024-06-06
 Make < an alias for print and > an alias for read NEW 2024-09-14
 Add feature to output last result value from program execution (mechanism is implemented) NEW 2024-09-14
 Support negation, unary operators + - ! NEW 2024-09-20
-See TODO in mcsh_value_init() NEW 2024-09-21
 Try GCC generics for mcsh_new(int), mcsh_new(string), etc. NEW 2024-12-06
+See TODO in mcsh_value_init() NEW 2024-09-21
 Buffering off by default, add option to turn it on. NEW 2024-09-21
 Intercept Ctrl-C (in readline?) NEW 2025-01-04
 Move hp stuff into separate C file 2025-09-12
