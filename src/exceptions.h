@@ -20,7 +20,15 @@
     }                                                             \
   } while (0);
 
-/** Conditionally raise exception and return */
+/**
+   Conditionally raise exception and return
+   value:    to check
+   required: type
+   status:   object
+   name:     of function
+   index:    of argument
+   msg:      human-readable text + varargs
+ */
 #define TYPE_CHECK(value, required, status, name, index, msg...)   \
   do                                                \
   {                                                 \
