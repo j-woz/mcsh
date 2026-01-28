@@ -2627,8 +2627,8 @@ loop_check(mcsh_status* status)
       status->code = MCSH_OK;
       break;
     case MCSH_EXCEPTION:
-      printf("loop_check: hit exception: '%s'\n",
-             status->exception->tag);
+      printf("loop_check: hit exception: '%s' '%s'\n",
+             status->exception->tag, status->exception->text);
       result.loop_return = true;
       break;
     case MCSH_EXIT:
