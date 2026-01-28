@@ -1191,6 +1191,7 @@ static bool sort_type_check(mcsh_bb* bb, list_array* L,
                             mcsh_value_type* type);
 
 static int cmp_value_int(const void* a0, const void* a1);
+static int cmp_value_str(const void* a0, const void* a1);
 
 static bool
 builtin_sort(mcsh_bb* bb)
@@ -1211,6 +1212,9 @@ builtin_sort(mcsh_bb* bb)
   {
     case MCSH_VALUE_INT:
       qsort(L->data, L->size, sizeof(void*), cmp_value_int);
+      break;
+    case MCSH_VALUE_STRING:
+      qsort(L->data, L->size, sizeof(void*), cmp_value_str);
       break;
     default:
       RAISE(bb->status, NULL, 0, "mcsh.type",
@@ -1244,6 +1248,15 @@ cmp_value_int(const void* a0, const void* a1)
   mcsh_value* v0 = *(mcsh_value**) a0;
   mcsh_value* v1 = *(mcsh_value**) a1;
   return (v0->integer - v1->integer);
+}
+
+/** For qsort() */
+static int
+cmp_value_str(const void* a0, const void* a1)
+{
+  mcsh_value* v0 = *(mcsh_value**) a0;
+  mcsh_value* v1 = *(mcsh_value**) a1;
+  return strcmp(v0->string, v1->string);
 }
 
 static bool
