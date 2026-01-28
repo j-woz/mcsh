@@ -32,6 +32,18 @@ $ mcsh
 print HELLO
 ----
 
+=== Filesystem
+
+==== `open`
+
+==== `close`
+
+==== `read`
+
+==== `write`
+
+==== `flush`
+
 == Basic variables
 
 ----
