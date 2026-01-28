@@ -1037,11 +1037,17 @@ builtin_os_rename(mcsh_bb* bb)
   TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 3,
              "argument must be a string filename");
 
-  int rc = rename(a->string, b->string);
+  char* a_name = a->string;
+  char* b_name = b->string;
+
+  mcsh_logger* logger = &bb->module->vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "mv: '%s' to '%s'",
+                                        a_name, b_name);
+  int rc = rename(a_name, b_name);
 
   RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
            "could not rename: '%s' to '%s' : %s",
-           a->string, b->string, strerror(errno));
+           a_name, b_name, strerror(errno));
 
   *bb->output = mcsh_value_new_int(0);
   return true;
