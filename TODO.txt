@@ -72,13 +72,13 @@ Named arguments 'f x=3' NEW: 2023-11-08
 App: rmbaks REISSUE: 2025-03-13
 Exotic: mcwk: Do something: See test 9201 and notes below REISSUE: 2025-03-13
 Make expr support floats NEW: 2023-08-19
-true/false literals
+true/false literals - bool type - DEP generics
 shift : Note that mcsh_entry has a shift for unknown reason
 default assignment:  'default x 3' or ':= x 3'
 default evaluation:  '$x:3' - but handle $PATH
 string buffer type
-fast string appends
 V=3 command
+fast string appends
 calc builtin functions: abs(), round(), pow(), etc.
 Prompt NEW: 2023-09-09
 V=(( f $x ))
