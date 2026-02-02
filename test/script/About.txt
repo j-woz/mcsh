@@ -12,6 +12,7 @@
 081: regsub
 082: globs
 083: expanders
+090: Assignment operator (tags) 'x=3' or 'x=(( f 3 ))'
 
 1: Elementary builtins (print)
 11: Bad builtins
