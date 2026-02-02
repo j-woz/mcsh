@@ -361,7 +361,8 @@ typedef enum
   MCSH_NODE_TYPE_STMTS  = 4,
   MCSH_NODE_TYPE_BLOCK  = 5,
   MCSH_NODE_TYPE_SUBCMD = 6,
-  MCSH_NODE_TYPE_SUBFUN = 7
+  MCSH_NODE_TYPE_SUBFUN = 7,
+  MCSH_NODE_TYPE_TAG    = 8
 } mcsh_node_type;
 
 typedef struct
@@ -408,7 +409,9 @@ typedef struct
   mcsh_thing* target;
   /// Resulting node tree goes here:
   mcsh_node* output;
+  /// A unique ID for each parsed item:
   int id;
+  mcsh_logger* logger;
 } mcsh_parse_state;
 
 typedef struct mcsh_vm_s    mcsh_vm;

@@ -23,3 +23,5 @@ mcsh_node* mcsh_node_block(mcsh_node* stmts, int line);
 mcsh_node* mcsh_node_subcmd(mcsh_node* stmts, int line);
 
 mcsh_node* mcsh_node_subfun(mcsh_node* stmts, int line);
+
+mcsh_node* mcsh_node_tag(char* left, mcsh_node* right, int line);

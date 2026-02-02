@@ -836,8 +836,8 @@ mcsh_module_parse(const char* source,
                   char* code,
                   mcsh_module* module)
 {
-  mcsh_log(&module->vm->logger, MCSH_LOG_PARSE, MCSH_DEBUG,
-           "module_parse: %s", source);
+  mcsh_logger* logger = &module->vm->logger;
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "module_parse: %s", source);
   strcpy(mcsh.parse_state.source, source);
   strcpy(module->source,          source);
   strcpy(mcsh.parse_state.name,   name);
@@ -850,9 +850,11 @@ mcsh_module_parse(const char* source,
   thing->data.module = module;
   thing->module = module;
   mcsh.parse_state.target = thing;
+  mcsh.parse_state.logger = logger;
 
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "preprocess: '%s'", code);
   mcsh_script_preprocess(code);
-
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "code: '%s'", code);
   mcsh_script_source_set(code);
 
   // Call to bison parser:
@@ -1384,8 +1386,8 @@ mcsh_value_drop(mcsh_logger* logger, mcsh_value* value)
                       value, value->refs);
   value->refs--;
   LOG(MCSH_LOG_MEM, MCSH_INFO, "drop: %p %i", value, value->refs);
-  if (value->refs == 0)
-    mcsh_value_free(logger, value);
+  /* if (value->refs == 0) */
+  /*   mcsh_value_free(logger, value); */
 }
 
 void
@@ -2020,7 +2022,6 @@ do_keyword(mcsh_logger* logger, mcsh_module* module,
   else if (strcmp(command, "foreach") == 0)
   {
     mcsh_do_foreach(module, values, output, status);
-    printf("do_foreach returned: *output=%p\n", *output);
   }
   else if (strcmp(command, "for") == 0)
   {

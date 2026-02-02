@@ -34,7 +34,9 @@
 %token RPARENS
 %token FUNCTN
 // %token RFUNCT
+%token EQ
 
+%token WS // Whitespace
 %token NL
 %token END
 %token SEMICOLON
@@ -52,28 +54,35 @@ program:
 
 stmts:
                 stmt
-                { // printf("bison: single stmt\n");
+                { printf("bison: single stmt\n");
                   $$ = mcsh_node_stmt(NULL, $1, mcsh_script_line); }
         |
                 stmts NL stmt
-                { // printf("bison: node stmt NL\n");
+                { printf("bison: node stmt NL\n");
                   $$ = mcsh_node_stmt($1, $3, mcsh_script_line); }
         |
                 stmts SEMICOLON stmt
-                { // printf("bison: node stmt SC\n");
+                { printf("bison: node stmt SC\n");
                   $$ = mcsh_node_stmt($1, $3, mcsh_script_line); }
                 ;
 
 stmt:
                 %empty
-                { // printf("bison: empty term\n");
+                { printf("bison: empty stmt\n");
                   $$ = NULL; }
         |
-                stmt term
+                term
                 {
-                  $$ = mcsh_node_term($1, $2, mcsh_script_line);
+                  printf("bison: stmt-1-term\n");
+                  $$ = mcsh_node_term(NULL, $1, mcsh_script_line);
                 }
-                  ;
+        |
+                stmt WS term
+                {
+                  printf("bison: stmt-WS-term\n");
+                  $$ = mcsh_node_term($1 , $3, mcsh_script_line);
+                }
+                ;
 
 term:
                 STRING
@@ -86,14 +95,19 @@ term:
                 { // printf("bison: block\n");
                   $$ = mcsh_node_block($2, mcsh_script_line); }
         |
-                SUBCMD stmts RPARENS
+                SUBCMD WS stmts WS RPARENS
                 { // printf("bison: subst\n");
-                  $$ = mcsh_node_subcmd($2, mcsh_script_line);
+                  $$ = mcsh_node_subcmd($3, mcsh_script_line);
                 }
         |
                 FUNCTN stmts RPARENS
                 { // printf("bison: subst\n");
                   $$ = mcsh_node_subfun($2, mcsh_script_line);
+                }
+        |
+                STRING EQ term
+                {
+                  $$ = mcsh_node_tag($1, $3, mcsh_script_line);
                 }
                 ;
 %%
@@ -101,8 +115,8 @@ term:
 // extern int yylex(void);
 
 void
-yyerror(const char *s)
+yyerror(const char* msg)
 {
-  printf("MCSH SCRIPT ERROR: line=%i %s \n", mcsh_script_line, s);
+  printf("MCSH PARSE ERROR: line %i: %s\n", mcsh_script_line, msg);
   exit(EXIT_FAILURE);
 }

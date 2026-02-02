@@ -74,4 +74,3 @@ mcsh_node_tern(mcsh_node* condition,
 
   return node;
 }
-

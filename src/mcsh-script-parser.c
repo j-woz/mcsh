@@ -5,7 +5,8 @@
 mcsh_node*
 mcsh_script_token(char* term, int line)
 {
-  // printf("add_token(): %i '%s'\n", mcsh_script_token_quoted, term);
+  printf("mcsh_script_token(): %i '%s'\n",
+         mcsh_script_token_quoted, term);
   char* p;
   size_t count;
   if (mcsh_script_token_quoted)
@@ -73,5 +74,17 @@ mcsh_node_subfun(mcsh_node* stmts, int line)
   mcsh_node* node =
     mcsh_node_construct(MCSH_NODE_TYPE_SUBFUN, 1, line);
   list_array_add(&node->children, stmts);
+  return node;
+}
+
+mcsh_node*
+mcsh_node_tag(char* left, mcsh_node* right, int line)
+{
+  mcsh_node* node = mcsh_node_construct(MCSH_NODE_TYPE_TAG, 2, line);
+  mcsh_node* target = mcsh_script_token(left, line);
+
+  list_array_add(&node->children, target);
+  list_array_add(&node->children, right);
+
   return node;
 }

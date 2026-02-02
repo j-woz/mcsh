@@ -15,33 +15,34 @@
   #include "mcsh-script-grammar.h"
 %}
 
-STRINGLITERAL ["](([\\]["])|([^"]))*["]
 
    bool mcsh_script_token_quoted;
    int mcsh_script_line = 1;
 
 %%
 
-[ \t]           ;
+[ \t]+ {
+  /* mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO, */
+  /*          "lexer: WS: '%s'", mcsh_script_text); */
+  printf("WS\n");
+  return WS; }
 
-{STRINGLITERAL} {
-  mcsh_script_token_quoted = true;
-  mcsh_script_lval.sval    = strdup(mcsh_script_text);
-  return STRING;
-}
 
-\n { mcsh_script_line++; return NL; }
+\n  { printf("NL\n"); mcsh_script_line++; return NL; }
 ";" { return SEMICOLON; }
 
 "{"  { return LBRACE; }
 "}"  { return RBRACE; }
 
-"$((" { return SUBCMD; }
 "))"  { return RPARENS; }
 
 "(("  { return FUNCTN; }
 
-[\[\]_:.,$#@!?+\-~*/%=<>a-zA-Z0-9()]+      {
+"=" { return EQ; }
+
+[\[\]_:.,$#@!?+\-~*/%<>a-zA-Z0-9()]+      {
+  mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
+           "lexer: STRING: '%s'", mcsh_script_text);
   mcsh_script_token_quoted = false;
   mcsh_script_lval.sval = strdup(mcsh_script_text);
   return STRING;
@@ -50,6 +51,8 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 <<EOF>> { return END; }
 
 %%
+// "$((" { return SUBCMD; }
+
 
 void
 mcsh_script_source_set(char* text)
@@ -64,3 +67,16 @@ mcsh_script_clean(void)
   mcsh_node_free(mcsh.parse_state.output, 0);
   // show("mcsh_script_clean: ok.");
 }
+
+// STRINGLITERAL ["](([\\]["])|([^"]))*["]
+
+
+/* {STRINGLITERAL} { */
+/*   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO, */
+/*            "lexer: STRINGLITERAL: '%s'", mcsh_script_text); */
+
+/*   mcsh_script_token_quoted = true; */
+/*   // sval is the output yysval variable: see the bison code */
+/*   mcsh_script_lval.sval    = strdup(mcsh_script_text); */
+/*   return STRING; */
+/* } */
