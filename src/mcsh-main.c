@@ -38,7 +38,7 @@ main(int argc, char* argv[])
   bool rc;
   rc = mcsh_init();
   if (!rc) fail("mcsh: could not initialize!");
-  mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_WARN,
+  mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_INFO,
            "MCSH START");
 
   char error_msg[1024];
