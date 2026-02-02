@@ -246,7 +246,7 @@ void fail(const char* fmt, ...);
 #define appendf(string, args...) \
   string += sprintf(string, ## args)
 /// Append Varargs string
-#define appendv(string, args...) \
+#define appendv(string, format, ap) \
   string += vsprintf(string, format, ap)
 
 /** Return current time as nice string */
