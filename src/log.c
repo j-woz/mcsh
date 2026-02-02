@@ -10,6 +10,8 @@
 static bool enabled = false;
 static const int buffer_size = 100 * 1024;
 static bool flush = true;
+// Internal debugging of the logger itself
+static bool debug = false;
 
 static void init_entries(mcsh_logger* logger);
 
@@ -40,7 +42,7 @@ mcsh_log_enable(bool b)
 
 struct log_setting
 {
-  mcsh_logcat    category;
+  mcsh_log_cat    category;
   mcsh_log_state state;
   mcsh_log_lvl   level;
   char label[64];
@@ -53,22 +55,23 @@ static void log_entry_setting(mcsh_logger* logger,
 static void
 init_entries(mcsh_logger* logger)
 {
-  struct log_setting settings[mcsh_logcats] =
+  struct log_setting settings[mcsh_log_cats] =
     {
       {MCSH_LOG_NULL,    MCSH_LOG_OFF,     MCSH_ZERO,  "NULL"   },
+      {MCSH_LOG_SAY,     MCSH_LOG_ON,      MCSH_INFO,  "SAY"   },
       {MCSH_LOG_CORE,    MCSH_LOG_OFF,     MCSH_INFO, "CORE"   },
-      {MCSH_LOG_SYSTEM,  MCSH_LOG_ON,      MCSH_INFO,  "SYSTEM" },
-      {MCSH_LOG_PARSE,   MCSH_LOG_ON,      MCSH_TRACE, "PARSE"  },
-      {MCSH_LOG_DATA,    MCSH_LOG_ON,      MCSH_TRACE, "DATA"   },
-      {MCSH_LOG_EVAL,    MCSH_LOG_ON,      MCSH_DEBUG, "EVAL"   },
-      {MCSH_LOG_CONTROL, MCSH_LOG_ON,      MCSH_DEBUG, "CONTROL"},
+      {MCSH_LOG_PARSE,   MCSH_LOG_ON,      MCSH_DEBUG, "PARSE"  },
+      {MCSH_LOG_SYSTEM,  MCSH_LOG_ON,      MCSH_WARN,  "SYSTEM" },
+      {MCSH_LOG_EVAL,    MCSH_LOG_ON,      MCSH_INFO, "EVAL"   },
+      {MCSH_LOG_CONTROL, MCSH_LOG_ON,      MCSH_INFO, "CONTROL"},
+      {MCSH_LOG_DATA,    MCSH_LOG_ON,      MCSH_WARN, "DATA"   },
       {MCSH_LOG_EXEC,    MCSH_LOG_DEFAULT, MCSH_INFO,  "EXEC"   },
       {MCSH_LOG_MEM,     MCSH_LOG_OFF,      MCSH_INFO,  "MEM"   },
-      {MCSH_LOG_BUILTIN, MCSH_LOG_ON,      MCSH_DEBUG,  "BUILTIN"},
+      {MCSH_LOG_BUILTIN, MCSH_LOG_ON,      MCSH_WARN,  "BUILTIN"},
       {MCSH_LOG_MODULE,  MCSH_LOG_ON,      MCSH_INFO,  "MODULE" }
     };
 
-  for (int i = 0; i < mcsh_logcats; i++)
+  for (int i = 0; i < mcsh_log_cats; i++)
     log_entry_setting(logger, &settings[i]);
 }
 
@@ -81,7 +84,7 @@ log_entry_setting(mcsh_logger* logger, struct log_setting* setting)
 }
 
 void
-mcsh_log_entry_set(mcsh_logger* logger, mcsh_logcat cat,
+mcsh_log_entry_set(mcsh_logger* logger, mcsh_log_cat cat,
                    mcsh_log_state state, mcsh_log_lvl lvl,
                    const char* label)
 {
@@ -92,42 +95,60 @@ mcsh_log_entry_set(mcsh_logger* logger, mcsh_logcat cat,
   strcpy(logger->entry[cat].label, label);
 }
 
-static bool log_check(mcsh_log_entry* entry,
-                      mcsh_log_lvl lvl_default,
-                      mcsh_log_lvl lvl_message);
+static bool do_check(mcsh_logger* logger,
+                     mcsh_log_cat cat,
+                     mcsh_log_lvl lvl_message);
 
 bool
-mcsh_log_check(mcsh_logger* logger, mcsh_logcat cat,
+mcsh_log_check(mcsh_logger* logger, mcsh_log_cat cat,
                mcsh_log_lvl lvl)
 {
-  // Silently allow NULL loggers:
-  if (logger == NULL) return false;
+  if (debug) printf("mcsh_log_check()...\n");
 
-  mcsh_log_entry* entry = &logger->entry[cat];
-  bool result = log_check(entry, logger->lvl, lvl);
+  bool result = do_check(logger, cat, lvl);
   return result;
 }
 
+static void report_va(mcsh_logger* logger, const char* label,
+                      const char* format, va_list ap);
+
 void
-mcsh_log(mcsh_logger* logger, mcsh_logcat cat,
-         mcsh_log_lvl lvl, char* format, ...)
+mcsh_log(mcsh_logger* logger, mcsh_log_cat cat,
+         mcsh_log_lvl lvl, const char* format, ...)
 {
-  // Silently allow NULL loggers:
-  if (logger == NULL) return;
+  // First, check if we are really going to write this log message:
+  if (! do_check(logger, cat, lvl)) return;
 
   // Look up the log category entry:
   mcsh_log_entry* entry = &logger->entry[cat];
+  va_list ap;
+  va_start(ap, format);
+  report_va(logger, entry->label, format, ap);
+  va_end(ap);
+}
 
-  // First, check if we are really going to write this log message:
-  if (! log_check(entry, logger->lvl, lvl)) return;
+static void
+report(mcsh_logger* logger, const char* label,
+       const char* format, ...)
+{
+  // User message:
+  va_list ap;
+  va_start(ap, format);
+  report_va(logger, label, format, ap);
+  va_end(ap);
+}
 
-  // Make a label with the log label and a colon:
+static void
+report_va(mcsh_logger* logger, const char* label,
+          const char* format, va_list ap)
+{
+   // Make a prefix with the log label and a colon:
   const int label_size = 16;
-  char label[label_size];
+  char prefix[label_size];
   size_t n;
-  n = strlcpyj(label, entry->label, label_size);
-  label[n]   = ':';
-  label[n+1] = '\0';
+  n = strlcpyj(prefix, label, label_size);
+  prefix[n]   = ':';
+  prefix[n+1] = '\0';
 
   // Fill in the output buffer components: DATE LABEL MESSAGE
   char buffer[buffer_size];
@@ -138,22 +159,41 @@ mcsh_log(mcsh_logger* logger, mcsh_logcat cat,
   n = time_string(p);
   p += n;
   appendf(p, " %-8s ", label);
-  // User message:
-  va_list ap;
-  va_start(ap, format);
   appendv(p, format, ap);
-  va_end(ap);
 
   // Write the buffer:
   fprintf(logger->stream, "%s\n", buffer);
   if (flush) fflush(logger->stream);
 }
 
-static bool
-log_check(mcsh_log_entry* entry,
-          mcsh_log_lvl lvl_default, mcsh_log_lvl lvl_message)
+static inline bool
+do_check(mcsh_logger* logger,
+         mcsh_log_cat cat,
+         mcsh_log_lvl lvl_message)
 {
   if (!enabled) return false;
+
+  // Silently allow NULL loggers:
+  if (logger == NULL)
+  {
+    if (debug) report(logger, "LOGGER",
+                      "mcsh_log_check(): logger is NULL");
+    return false;
+  }
+
+  if (cat == MCSH_LOG_NULL)
+  {
+    if (debug) report(logger, "LOGGER", "logger is LOG_NULL");
+    return false;
+  }
+  if (cat == MCSH_LOG_SAY)
+  {
+    if (debug) report(logger, "LOGGER", "logger is LOG_SAY");
+    return true;
+  }
+
+  // Look up the log category entry:
+  mcsh_log_entry* entry = &logger->entry[cat];
 
   mcsh_log_lvl threshold = MCSH_ZERO;
   switch (entry->state)
@@ -164,11 +204,12 @@ log_check(mcsh_log_entry* entry,
       threshold = entry->lvl;
       break;
     case MCSH_LOG_DEFAULT:
-      threshold = lvl_default;
+      threshold = logger->lvl;
       break;
     default:
       valgrind_fail_msg("Unknown log state: %i", lvl_message);
   }
+
   if (lvl_message < threshold)
     return false;
 
