@@ -2,20 +2,23 @@
 set -eu
 
 LIMIT=1000000
+JUMP_TO=""
 SKIP_TO=""
 
-zparseopts h=H k:=K n:=N v+=V
+zparseopts h=H j:=J k:=K n:=N v+=V
 
 if (( ${#H} )) {
-  print "Usage: test-all.zsh [-h] [-k NUMBER] [-n LIMIT] [-v ...]"
+  print "Usage: test-all.zsh " \
+        "[-h] [-j NUMBER] [-k NUMBER] [-n LIMIT] [-v ...]"
   print "  -h         Show this help"
-  print "  -k NUMBER  Skip to test NUMBER"
+  print "  -j NUMBER  Jump to test NUMBER"
+  print "  -k SKIP    SKIP NUMBER of tests"
   print "  -n LIMIT   Stop after LIMIT tests"
   print "  -v         Increase verbosity (repeatable)"
   return
 }
 
-if (( ${#K} )) SKIP_TO=${K[2]}
+if (( ${#J} )) JUMP_TO=${J[2]}
 if (( ${#N} )) LIMIT=${N[2]}
 VERBOSITY=${#V}
 
@@ -23,6 +26,8 @@ THIS=${${0:h}:A}
 cd $THIS/../..
 source ./scripts/util.zsh
 
+if (( $#JUMP_TO > 0 )) && [[ $JUMP_TO != <-> ]] \
+                            abort "Bad JUMP_TO: '$JUMP_TO'"
 if (( $#SKIP_TO > 0 )) && [[ $SKIP_TO != <-> ]] \
                             abort "Bad SKIP_TO: '$SKIP_TO'"
 
@@ -39,19 +44,33 @@ export MAKE=0
 
 cd $THIS
 
-TESTS=( *.mc )
+TESTS=( [0-9]*.mc )
 COUNT=$#TESTS
 print "COUNT: $COUNT"
+if (( ${#JUMP_TO} )) print "JUMP:  $JUMP_TO"
+if (( ${#SKIP_TO} )) print "SKIP:  $SKIP_TO"
 INDEX=0
 for TEST in $TESTS
 do
-  if (( COUNT >= LIMIT )) break
+  if (( INDEX >= LIMIT )) break
+  (( ++ INDEX ))
+
   LABEL=${TEST%.mc}
   NUMBER=${TEST[1,4]}
-  if (( $#SKIP_TO )) {
-    if [[ $NUMBER != <-> ]] \
-         abort "test-all.zsh: bad number '$NUMBER' in $TEST"
-    if (( $NUMBER == $SKIP_TO )) {
+
+  if [[ $NUMBER != <-> ]] \
+       abort "test-all.zsh: bad number '$NUMBER' in $TEST"
+
+  if (( ${#JUMP_TO} )) {
+    if (( $INDEX > JUMP_TO )) {
+      JUMP_TO="" # stop jumping
+      print stop jumping
+    } else {
+      continue
+    }
+  }
+  if (( ${#SKIP_TO} )) {
+    if (( NUMBER == SKIP_TO )) {
       SKIP_TO="" # stop skipping
     } else {
       continue
@@ -66,6 +85,5 @@ do
   }
   ./test.sh -oq $LABEL
   if (( VERBOSITY )) print
-  (( ++ INDEX ))
 done
 print "TEST ALL: OK.  COUNT=$COUNT"
