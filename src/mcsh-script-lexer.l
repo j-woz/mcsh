@@ -73,8 +73,5 @@ mcsh_script_source_set(char* text)
 void
 mcsh_script_clean(void)
 {
-  // show("mcsh_script_clean: %p", mcsh.parse_state.output);
   mcsh_node_free(mcsh.parse_state.output, 0);
-  // show("mcsh_script_clean: ok.");
 }
-
