@@ -173,6 +173,7 @@ typedef enum
   MCSH_OP_DIV      = 6,
   MCSH_OP_IDIV     = 7,
   MCSH_OP_MOD      = 8,
+  MCSH_OP_NEG      = 9,
   MCSH_OP_EQ       = 100,
   MCSH_OP_NE       = 101,
   MCSH_OP_LT       = 102,
@@ -222,6 +223,9 @@ op_to_string(char* s, mcsh_operator op)
       break;
     case MCSH_OP_GE:
       strcpy(s, ">=");
+      break;
+    case MCSH_OP_NEG:
+      strcpy(s, "-");
       break;
     case MCSH_OP_TERN:
       strcpy(s, "?:");

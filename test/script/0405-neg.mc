@@ -1,3 +1,3 @@
 
-print (( $      -2 ))
-print (( $ 1 - - 2 ))
+print "should be neg 2" (( $      -2 ))
+print "should be     3" (( $ 1 - - 2 ))

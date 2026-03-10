@@ -3473,7 +3473,8 @@ is_math_op(mcsh_operator op)
     op == MCSH_OP_GT    ||
     op == MCSH_OP_LE    ||
     op == MCSH_OP_GE    ||
-    op == MCSH_OP_TERN;
+    op == MCSH_OP_TERN  ||
+    op == MCSH_OP_NEG;
 }
 
 static inline bool eval_ternary(mcsh_vm* vm, mcsh_operator op,
@@ -3496,6 +3497,14 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
   if (op == MCSH_OP_TERN)
   {
     eval_ternary(vm, op, &expr->children, &int_result);
+  }
+  else if (op == MCSH_OP_NEG)
+  {
+    mcsh_value* value;
+    mcsh_expr_eval(vm, expr->children.data[0], &value);
+    int64_t i;
+    mcsh_value_integer(value, &i);
+    int_result = -i;
   }
   else
   {

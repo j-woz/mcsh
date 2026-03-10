@@ -63,6 +63,7 @@
 %left EQ NE LT GT LE GE
 %left PLUS MINUS
 %left MULT DIV IDIV MOD
+%right UMINUS
 
 %start program
 
@@ -163,6 +164,12 @@ expr:
                 {
                   printf("found: GE: %s\n", $2);
                   $$ = mcsh_node_op(MCSH_OP_GE, $1, $3,
+                                    mcsh_expr_line);
+                }
+        |
+                MINUS expr %prec UMINUS
+                {
+                  $$ = mcsh_node_op(MCSH_OP_NEG, $2, NULL,
                                     mcsh_expr_line);
                 }
         |
