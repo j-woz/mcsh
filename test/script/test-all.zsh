@@ -4,7 +4,16 @@ set -eu
 LIMIT=1000000
 SKIP_TO=""
 
-zparseopts k:=K n:=N v+=V
+zparseopts h=H k:=K n:=N v+=V
+
+if (( ${#H} )) {
+  print "Usage: test-all.zsh [-h] [-k NUMBER] [-n LIMIT] [-v ...]"
+  print "  -h         Show this help"
+  print "  -k NUMBER  Skip to test NUMBER"
+  print "  -n LIMIT   Stop after LIMIT tests"
+  print "  -v         Increase verbosity (repeatable)"
+  return
+}
 
 if (( ${#K} )) SKIP_TO=${K[2]}
 if (( ${#N} )) LIMIT=${N[2]}
