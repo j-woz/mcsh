@@ -100,9 +100,9 @@ term:
                 { // printf("bison: block\n");
                   $$ = mcsh_node_block($2, mcsh_script_line); }
         |
-                SUBCMD WS stmts WS RPARENS
+                SUBCMD stmts RPARENS
                 { // printf("bison: subst\n");
-                  $$ = mcsh_node_subcmd($3, mcsh_script_line);
+                  $$ = mcsh_node_subcmd($2, mcsh_script_line);
                 }
         |
                 FUNCTN stmts RPARENS

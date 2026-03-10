@@ -47,6 +47,7 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 "))"  { return RPARENS; }
 
 "(("  { return FUNCTN; }
+"$((" { return SUBCMD; }
 
 "=" { return EQ; }
 
@@ -61,7 +62,7 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 <<EOF>> { return END; }
 
 %%
-// "$((" { return SUBCMD; }
+
 
 
 void

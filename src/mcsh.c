@@ -1804,7 +1804,7 @@ mcsh_stmts_execute(mcsh_module* module, mcsh_stmts* stmts,
     if (output == NULL)
     {
       ;
-      printf("execute: stmt-out: output==NULL\n");
+      // printf("execute: stmt-out: output==NULL\n");
       // return false;
     }
     else if (*output == NULL)  // Statement did not return a value - OK

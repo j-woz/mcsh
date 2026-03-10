@@ -64,6 +64,8 @@ mcsh_subcmd_capture(mcsh_module* module,
   int rc;
   rc = pipe(pipefd);
   assert(rc == 0);
+  fflush(stdout);
+  fflush(stderr);
   pid_t pid = fork();
   if (pid != 0)
   {
@@ -133,6 +135,7 @@ subcmd_child(mcsh_module* module, mcsh_stmts* stmts,
   bool rc = mcsh_stmts_execute(module, stmts, NULL, status);
   CHECK(rc, "child error");
 
+  fflush(stdout);
   close(pipefd[1]);
   return true;
 }
