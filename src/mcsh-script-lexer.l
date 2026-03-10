@@ -22,8 +22,7 @@
 
 %%
 
-/* consumes whitespace at end of stmt before )) */
-[ \t]+/"))" { }
+[ \t]+/"))" { /* consumes whitespace at end of stmt before )) */ }
 
 [ \t]+ {
   printf("WS\n");
