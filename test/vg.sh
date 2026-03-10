@@ -20,7 +20,7 @@ if (( ${#L} )) LEAK=( --leak-check=yes )
 
 if (( ${#} == 0 )) {
   print "vg.sh: Provide a command to run!"
-  exit 1
+  return 1
 }
 
 if (( ${#VERBOSE} )) set -x
