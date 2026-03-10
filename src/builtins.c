@@ -674,6 +674,7 @@ builtin_expr(mcsh_bb* bb)
 static bool
 builtin_set(mcsh_bb* bb)
 {
+  EXCEPTION_ARGC_EQ(2);
   mcsh_logger* logger = &bb->module->vm->logger;
   mcsh_value* target = bb->args->data[1];
   buffer b;
