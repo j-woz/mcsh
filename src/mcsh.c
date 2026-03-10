@@ -3177,8 +3177,22 @@ pair_to_stmt(mcsh_module* module, mcsh_thing* parent,
     pair_to_stmt(module, parent, left, stmt);
   mcsh_node* right = node->children.data[1];
   valgrind_assert(right != NULL);
-  mcsh_thing* thing = node_to_thing(module, parent, right);
-  list_array_add(&stmt->things, thing);
+  if (right->type == MCSH_NODE_TYPE_TAG)
+  {
+    mcsh_node* name_node  = right->children.data[0];
+    mcsh_node* value_node = right->children.data[1];
+    list_array_add(&stmt->things,
+                   mcsh_thing_construct_token(module, "="));
+    list_array_add(&stmt->things,
+                   node_to_thing(module, parent, name_node));
+    list_array_add(&stmt->things,
+                   node_to_thing(module, parent, value_node));
+  }
+  else
+  {
+    mcsh_thing* thing = node_to_thing(module, parent, right);
+    list_array_add(&stmt->things, thing);
+  }
 }
 
 mcsh_thing*

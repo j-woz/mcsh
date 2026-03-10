@@ -109,6 +109,11 @@ term:
                 {
                   $$ = mcsh_node_tag($1, $3, mcsh_script_line);
                 }
+        |
+                EQ
+                {
+                  $$ = mcsh_script_token("=", mcsh_script_line);
+                }
                 ;
 %%
 
