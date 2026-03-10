@@ -1,6 +1,7 @@
 
 /*
   MCSH SCRIPT L
+  Remember the lookahead operator: /
 */
 
 %option prefix="mcsh_script_"
@@ -21,9 +22,10 @@
 
 %%
 
+/* consumes whitespace at end of stmt before )) */
+[ \t]+/"))" { }
+
 [ \t]+ {
-  /* mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO, */
-  /*          "lexer: WS: '%s'", mcsh_script_text); */
   printf("WS\n");
   return WS; }
 

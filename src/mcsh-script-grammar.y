@@ -82,6 +82,11 @@ stmt:
                   printf("bison: stmt-WS-term\n");
                   $$ = mcsh_node_term($1 , $3, mcsh_script_line);
                 }
+        |
+                stmt WS
+                {
+                  $$ = $1;
+                }
                 ;
 
 term:
