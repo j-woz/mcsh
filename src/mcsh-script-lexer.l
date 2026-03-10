@@ -16,11 +16,20 @@
   #include "mcsh-script-grammar.h"
 %}
 
+STRINGLITERAL ["](([\\]["])|([^"]))*["]
 
    bool mcsh_script_token_quoted;
    int mcsh_script_line = 1;
 
 %%
+
+{STRINGLITERAL} {
+  mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
+           "lexer: STRINGLITERAL: '%s'", mcsh_script_text);
+  mcsh_script_token_quoted = true;
+  mcsh_script_lval.sval = strdup(mcsh_script_text);
+  return STRING;
+}
 
 [ \t]+/"))" { /* consumes whitespace at end of stmt before )) */ }
 
@@ -69,15 +78,3 @@ mcsh_script_clean(void)
   // show("mcsh_script_clean: ok.");
 }
 
-// STRINGLITERAL ["](([\\]["])|([^"]))*["]
-
-
-/* {STRINGLITERAL} { */
-/*   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO, */
-/*            "lexer: STRINGLITERAL: '%s'", mcsh_script_text); */
-
-/*   mcsh_script_token_quoted = true; */
-/*   // sval is the output yysval variable: see the bison code */
-/*   mcsh_script_lval.sval    = strdup(mcsh_script_text); */
-/*   return STRING; */
-/* } */
