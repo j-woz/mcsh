@@ -2083,7 +2083,12 @@ do_token(mcsh_logger* logger, mcsh_module* module,
     case MCSH_THING_SUBFUN:
       LOG(MCSH_LOG_EVAL, MCSH_INFO, "subfun execute...");
       stmts = &token->data.subfun->stmts;
-      mcsh_stmts_execute(module, stmts, &value, status);
+      {
+        size_t saved = module->instruction;
+        module->instruction = 0;
+        mcsh_stmts_execute(module, stmts, &value, status);
+        module->instruction = saved;
+      }
       if (status->code == MCSH_EXCEPTION)
       {
         LOG(MCSH_LOG_EVAL, MCSH_INFO, "subfun: exception!");
