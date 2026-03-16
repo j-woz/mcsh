@@ -26,7 +26,7 @@ MCAWK
 MCMAKE
 
 C23: Think about using generics, auto.
-gnulib: Thing about using gnulib
+gnulib: Think about using gnulib
         Lists
         Human-readable byte sizes
 
