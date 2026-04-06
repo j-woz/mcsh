@@ -5,7 +5,7 @@ SUFFIXES = .c .h .y .l
 
 AM_CPPFLAGS = -I . -I src
 # Provide -O0 at configure time
-AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always
+AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always -Wshadow
 # -pedantic
 AM_YFLAGS = -d
 AM_LDFLAGS = -l readline
