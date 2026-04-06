@@ -75,17 +75,13 @@ bool mcsh_value_type_code(char* name, mcsh_value_type* type);
 
 typedef enum
 {
-  MCSH_PROTO,
-  MCSH_OK,
-  MCSH_RETURN,
-  /** loop break */
-  MCSH_BREAK,
-  /** loop continue */
-  MCSH_CONTINUE,
-  /** user issued exit command */
-  MCSH_EXIT,
-  /** user code triggered exception */
-  MCSH_EXCEPTION
+  MCSH_PROTO     = 0,
+  MCSH_OK        = 1,
+  MCSH_RETURN    = 2,
+  MCSH_BREAK     = 3,  /// loop break
+  MCSH_CONTINUE  = 4,  /// loop continue
+  MCSH_EXIT      = 5,  /// user issued exit command
+  MCSH_EXCEPTION = 6   /// user code triggered exception
 } mcsh_code;
 
 typedef struct mcsh_value_s     mcsh_value;
