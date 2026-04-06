@@ -61,13 +61,13 @@ init_entries(mcsh_logger* logger)
       {MCSH_LOG_SAY,     MCSH_LOG_ON,      MCSH_INFO,  "SAY"   },
       {MCSH_LOG_CORE,    MCSH_LOG_OFF,     MCSH_INFO, "CORE"   },
       {MCSH_LOG_PARSE,   MCSH_LOG_ON,      MCSH_DEBUG, "PARSE"  },
-      {MCSH_LOG_SYSTEM,  MCSH_LOG_ON,      MCSH_WARN,  "SYSTEM" },
-      {MCSH_LOG_EVAL,    MCSH_LOG_ON,      MCSH_INFO, "EVAL"   },
-      {MCSH_LOG_CONTROL, MCSH_LOG_ON,      MCSH_INFO, "CONTROL"},
+      {MCSH_LOG_SYSTEM,  MCSH_LOG_ON,      MCSH_INFO,  "SYSTEM" },
+      {MCSH_LOG_EVAL,    MCSH_LOG_ON,      MCSH_DEBUG, "EVAL"   },
+      {MCSH_LOG_CONTROL, MCSH_LOG_ON,      MCSH_DEBUG, "CONTROL"},
       {MCSH_LOG_DATA,    MCSH_LOG_ON,      MCSH_WARN, "DATA"   },
       {MCSH_LOG_EXEC,    MCSH_LOG_DEFAULT, MCSH_INFO,  "EXEC"   },
       {MCSH_LOG_MEM,     MCSH_LOG_OFF,      MCSH_INFO,  "MEM"   },
-      {MCSH_LOG_BUILTIN, MCSH_LOG_ON,      MCSH_WARN,  "BUILTIN"},
+      {MCSH_LOG_BUILTIN, MCSH_LOG_ON,      MCSH_INFO,  "BUILTIN"},
       {MCSH_LOG_MODULE,  MCSH_LOG_ON,      MCSH_INFO,  "MODULE" }
     };
 
