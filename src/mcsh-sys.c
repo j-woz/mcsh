@@ -26,9 +26,9 @@ mcsh_exec(UNUSED mcsh_module* module,
   if (pid != 0)
   {
     show("pid: %i", pid);
-    int status;
-    waitpid(pid, &status, 0);
-    exitcode = WEXITSTATUS(status);
+    int wstatus;
+    waitpid(pid, &wstatus, 0);
+    exitcode = WEXITSTATUS(wstatus);
     show("exitcode: %i", exitcode);
   }
   else
