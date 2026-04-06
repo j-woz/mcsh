@@ -1706,21 +1706,20 @@ mcsh_module_execute(mcsh_module* module,
                     mcsh_value** output,
                     mcsh_status* status)
 {
+  mcsh_logger* logger = &module->vm->logger;
   // module->vm->logger.show_pid = true;
-  mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-           "mcsh_module_execute() %i ...",
-           module->instruction);
+  LOG(MCSH_LOG_EVAL, MCSH_DEBUG,
+      "mcsh_module_execute() %i ...", module->instruction);
   bool rc = mcsh_stmts_execute(module, &module->stmts,
                                output, status);
   CHECK(rc, "module_execute: failed!");
   if (status->code == MCSH_EXCEPTION)
-  {
-    mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-             "mcsh_module_execute() %i: exception!",
-             module->instruction);
-  }
-  mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-           "mcsh_module_execute() OK.");
+    LOG(MCSH_LOG_EVAL, MCSH_DEBUG,
+        "mcsh_module_execute() %i: exception!", module->instruction);
+
+  // valgrind_assert(status->code != MCSH_EXIT);
+
+  LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "mcsh_module_execute(): %p code: %i", status,  status->code);
   return true;
 }
 
@@ -1733,16 +1732,14 @@ mcsh_stmts_execute(mcsh_module* module, mcsh_stmts* stmts,
                    mcsh_value** output, mcsh_status* status)
 {
   bool rc;
-  mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-           "mcsh_stmts_execute() "
-           "%p stmts=%zi output=%p @%i...",
-           stmts,
-           stmts->stmts.size, output, module->instruction);
+  mcsh_logger* logger = &module->vm->logger;
+  LOG(MCSH_LOG_EVAL, MCSH_DEBUG,
+      "mcsh_stmts_execute() stmts=%zi output=%p @%i...",
+      stmts->stmts.size, output, module->instruction);
   size_t i;
   for (i = module->instruction; i+1 < stmts->stmts.size; i++)
   {
-    mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-               "execute: stmt: %zi: ...", i);
+    LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "execute: stmt: %zi: ...", i);
     // Need tmp- non-last statements (macros) may MCSH_RETURN
     mcsh_value* tmp = NULL;
     rc = mcsh_stmt_execute(module, stmts->stmts.data[i],
@@ -1757,13 +1754,13 @@ mcsh_stmts_execute(mcsh_module* module, mcsh_stmts* stmts,
       }
       case MCSH_RETURN:
       {
-        mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
-                 "execute: caught RETURN");
+        LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "execute: trigger: RETURN");
         *output = tmp;
         return true;
       }
       case MCSH_EXIT:
       {
+        LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "execute: trigger: EXIT");
         return true;
       }
       case MCSH_EXCEPTION:
@@ -1775,8 +1772,7 @@ mcsh_stmts_execute(mcsh_module* module, mcsh_stmts* stmts,
   }
   if (i < stmts->stmts.size)
   {
-    mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_TRACE,
-             "execute: stmt-last: %zi: ...", i);
+    LOG(MCSH_LOG_EVAL, MCSH_TRACE, "execute: stmt-last: %zi: ...", i);
     rc = mcsh_stmt_execute(module, stmts->stmts.data[i],
                            output, status);
     // valgrind_assert_msg(rc, "stmt failed2");
@@ -1909,9 +1905,10 @@ mcsh_stmt_execute(mcsh_module* module, mcsh_stmt* stmt,
   }
   else if (mcsh_builtins_has(command))
   {
-    LOG(MCSH_LOG_CONTROL, MCSH_INFO, "builtin execute: %s", command);
+    LOG(MCSH_LOG_CONTROL, MCSH_INFO,  "builtin execute: %s", command);
     mcsh_builtins_execute(module, &values, output, status);
-    LOG(MCSH_LOG_CONTROL, MCSH_INFO, "builtin done: %s", command);
+    LOG(MCSH_LOG_CONTROL, MCSH_INFO,  "builtin done: %s", command);
+    LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "builtin code: %i", status->code);
   }
   else
   {
@@ -2271,7 +2268,7 @@ mcsh_stack_search(mcsh_logger* logger,
 
 bool
 mcsh_do_if(mcsh_module* module, list_array* args,
-           UNUSED mcsh_value** output, UNUSED mcsh_status* status)
+           mcsh_value** output, mcsh_status* status)
 {
   mcsh_logger* logger = &module->vm->logger;
   LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "do_if [%zi] ...", args->size);
@@ -2314,19 +2311,27 @@ mcsh_do_if(mcsh_module* module, list_array* args,
       mcsh_value* value_condition;
       mcsh_stmts_execute(module, &condition->block->stmts,
                          &value_condition, status);
-      if (status->code == MCSH_EXCEPTION) return true;
+      if (status->code == MCSH_EXCEPTION)
+      {
+        LOG(MCSH_LOG_CONTROL, MCSH_TRACE, "do_if: exception in condition");
+        return true;
+      }
       mcsh_value_integer(value_condition, &condition_result);
       LOG(MCSH_LOG_CONTROL, MCSH_TRACE, "condition: %"PRId64,
           condition_result);
     }
-    if (condition_result != 0)
+    if (condition_result)
     {
-      LOG(MCSH_LOG_CONTROL, MCSH_TRACE, "condition true");
+      LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "condition true");
 
       mcsh_value* value_body;
       mcsh_stmts_execute(module, &body->block->stmts,
                          &value_body, status);
-      if (status->code == MCSH_EXCEPTION) return true;
+      if (status->code == MCSH_EXCEPTION)
+      {
+        LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "do_if: exception in body");
+        return true;
+      }
       if (output != NULL) *output = value_body;
       break;
     }
@@ -4103,9 +4108,9 @@ mcsh_final_status(bool result, mcsh_status* status, int* exit_status)
     }
     case MCSH_EXIT:
     {
-      *exit_status = status->value->integer;
-      mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_TRACE,
-               "exit status handled: code=%i\n", exit_status);
+      *exit_status = (int) status->value->integer;
+      mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_INFO,
+               "exit status handled: code=%zi\n", exit_status);
       break;
     }
     default:
