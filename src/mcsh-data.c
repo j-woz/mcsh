@@ -227,9 +227,9 @@ mcsh_data_finalize(mcsh_vm* vm)
 }
 
 static void
-data_value_free(void* context, UNUSED const char* name, void* v)
+data_value_free(void* p, UNUSED const char* name, void* v)
 {
-  mcsh_logger* logger = context;
+  mcsh_logger* logger = p;
   mcsh_value*  value  = v;
   mcsh_value_free(logger, value);
 }
@@ -1154,9 +1154,9 @@ subscript_eval_expander(variable* v, contig* c, mcsh_value* found,
 {
   if (v->expander.type == EXPANDER_TEST)
   {
-    int c = (found != NULL);
+    int b = (found != NULL);
     // printf("eval_expander TEST: %i\n", c);
-    *result = mcsh_value_new_int(c);
+    *result = mcsh_value_new_int(b);
     v->expander.type = EXPANDER_NONE;
   }
   else
