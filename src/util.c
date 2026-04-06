@@ -95,7 +95,7 @@ valgrind_assert_failed_msg(const char* file, int line,
     barf = line;
     puts((char*) barf);
   }
-  exit(1);
+  exit(EXIT_FAILURE);
 }
 
 char*
