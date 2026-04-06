@@ -39,7 +39,7 @@ mcsh_value mcsh_null;
 char mcsh_null_string[] = "mcsh.NULL";
 
 /** Counter for miscellaneous identifiers */
-uint64_t counter = 1;
+uint64_t unique_id = 1;
 
 /** thing->type as string */
 static void
@@ -491,7 +491,7 @@ mcsh_entry_init_macro(mcsh_entry* entry, mcsh_entry* parent)
 static inline void
 mcsh_entry_init(mcsh_entry* entry, mcsh_entry* parent)
 {
-  entry->id = counter++;
+  entry->id = unique_id++;
   // If parent is NULL, this is the main module
   entry->parent = parent;
   strmap_init(&entry->vars, 4);
