@@ -4108,9 +4108,9 @@ mcsh_final_status(bool result, mcsh_status* status, int* exit_status)
     }
     case MCSH_EXIT:
     {
-      *exit_status = (int) status->value->integer;
-      mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_INFO,
-               "exit status handled: code=%zi\n", exit_status);
+      *exit_status = status->value->integer;
+      mcsh_log(&mcsh.logger, MCSH_LOG_SYSTEM, MCSH_DEBUG,
+               "exit status handled: code=%i", *exit_status);
       break;
     }
     default:
