@@ -471,13 +471,14 @@ builtin_string(mcsh_bb* bb)
 static bool
 builtin_string_encode(mcsh_bb* bb)
 {
+  mcsh_logger* logger = &bb->module->vm->logger;
   EXCEPTION_SUBARGC_EQ("encode", 2);
 
   mcsh_value* value = bb->args->data[2];
-  EXCEPTION_SUBARG_TYPE("encode", value, MCSH_VALUE_STRING, 2);
-
-  char c = value->string[0];
-  mcsh_value* result = mcsh_value_new_int(c);
+  const int length = 1024;
+  char s[length];
+  mcsh_to_string(logger, s, length, value);
+  mcsh_value* result = mcsh_value_new_int(s[0]);
   maybe_assign(bb->output, result);
 
   return true;
@@ -613,16 +614,16 @@ builtin_incr(mcsh_bb* bb)
 static bool
 builtin_exit(mcsh_bb* bb)
 {
-  int code = EXIT_SUCCESS;
+  mcsh_logger* logger = &bb->module->vm->logger;
+  int64_t code = EXIT_SUCCESS;
   if (bb->args->size > 1)
   {
     mcsh_value* value = bb->args->data[1];
     mcsh_resolve(value);
-    int64_t code;
     bool rc = mcsh_value_integer(value, &code);
     CHECK(rc, "builtin_exit: not integer");
-    mcsh_log(&bb->module->vm->logger, MCSH_LOG_BUILTIN, MCSH_INFO,
-             "builtin exit: code=%"PRId64, code);
+    LOG(MCSH_LOG_BUILTIN, MCSH_INFO,
+        "builtin exit: code=%"PRId64, code);
   }
   *bb->output = &mcsh_null;
   bb->status->code  = MCSH_EXIT;
@@ -692,7 +693,6 @@ builtin_set(mcsh_bb* bb)
   bool rc = mcsh_set_value(bb->module, name, value, bb->status);
   // Need to grab when doing: = x $T[$k]
   mcsh_value_grab(logger, value);
-  // TODO: check status
   // printf("value: %p\n", value);
   maybe_assign(bb->output, value);
   // printf("out type: %i\n", (*(bb->output))->type);
