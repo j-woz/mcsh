@@ -280,7 +280,7 @@ char* trim_right(char* s);
 static char string_true[]  = "true";
 static char string_false[] = "false";
 
-static char* TF(bool b)
+UNUSED static char* TF(bool b)
 {
   return b ? string_true : string_false;
 }
