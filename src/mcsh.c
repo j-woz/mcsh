@@ -30,9 +30,6 @@ extern int mcsh_expr_parse(void);
 
 mcsh_system mcsh;
 
-// Apparent duplicate in GCC 10.3.0 2021-08-11:
-// bool mcsh_script_token_quoted;
-
 /** Contains mcsh_things - TODO: remove this */
 static list_array terms_in;
 
