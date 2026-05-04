@@ -49,6 +49,11 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 "(("  { return FUNCTN; }
 "$((" { return SUBCMD; }
 
+"==" {
+  mcsh_script_lval.sval = strdup(mcsh_script_text);
+  return STRING;
+}
+
 "=" { return EQ; }
 
 [\[\]_:.,$#@!?+\-~*/%<>a-zA-Z0-9()]+      {

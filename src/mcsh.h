@@ -553,6 +553,24 @@ typedef struct
 
 #include "mcsh-data.h"
 
+#if 0
+/** Ensure value is of type or crash with message about context */
+static inline void
+mcsh_type_assert(mcsh_value* value, int type, const char* context)
+{
+  if (value->type != type)
+  {
+    char type_wanted[64];
+    char type_given [64];
+    mcsh_value_type_name(value->type, type_given);
+    mcsh_value_type_name(type,        type_wanted);
+    valgrind_assert_failed_msg("type assertion failed in %s\n"
+                               "     wanted: %s given: %s",
+                               context, type_wanted, type_given);
+  }
+}
+#endif
+
 bool mcsh_init(void);
 
 void mcsh_status_init(mcsh_status* status);
@@ -629,8 +647,8 @@ void mcsh_value_drop(mcsh_logger* logger, mcsh_value* value);
 
 void mcsh_thing_show(mcsh_thing* thing, int indent);
 
-mcsh_thing* mcsh_thing_from_value(mcsh_module* module,
-                                  mcsh_value* value);
+mcsh_thing* mcsh_thing_token_new_value(mcsh_module* module,
+                                       mcsh_value* value);
 
 void mcsh_block_print(mcsh_block* block, int indent);
 

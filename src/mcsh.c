@@ -911,7 +911,7 @@ mcsh_source_parse(const char* source,
 }
 
 static inline mcsh_thing*
-mcsh_thing_construct_token(mcsh_module* module, const char* token)
+mcsh_thing_token_new_string(mcsh_module* module, const char* token)
 {
   mcsh_thing* thing = malloc_checked(sizeof(mcsh_thing));
   thing->type = MCSH_THING_TOKEN;
@@ -922,7 +922,15 @@ mcsh_thing_construct_token(mcsh_module* module, const char* token)
 }
 
 static inline mcsh_thing*
-mcsh_thing_construct_block(mcsh_module* module, mcsh_thing* parent,
+mcsh_thing_token_new_int(mcsh_module* module, int64_t i)
+{
+  char buf[24];
+  snprintf(buf, sizeof(buf), "%"PRId64, i);
+  return mcsh_thing_token_new_string(module, buf);
+}
+
+static inline mcsh_thing*
+mcsh_thing_block_new(mcsh_module* module, mcsh_thing* parent,
                            int line)
 {
   mcsh_block* block = malloc_checked(sizeof(mcsh_block));
@@ -938,7 +946,7 @@ mcsh_thing_construct_block(mcsh_module* module, mcsh_thing* parent,
 }
 
 static inline mcsh_thing*
-mcsh_thing_construct_subcmd(mcsh_module* module, mcsh_thing* parent,
+mcsh_thing_subcmd_new(mcsh_module* module, mcsh_thing* parent,
                             UNUSED int line)
 {
   mcsh_subcmd* subcmd = malloc_checked(sizeof(mcsh_subcmd));
@@ -954,7 +962,7 @@ mcsh_thing_construct_subcmd(mcsh_module* module, mcsh_thing* parent,
 }
 
 static inline mcsh_thing*
-mcsh_thing_construct_subfun(mcsh_module* module, mcsh_thing* parent,
+mcsh_thing_subfun_new(mcsh_module* module, mcsh_thing* parent,
                             UNUSED int line)
 {
   mcsh_subfun* subfun = malloc_checked(sizeof(mcsh_subfun));
@@ -970,7 +978,7 @@ mcsh_thing_construct_subfun(mcsh_module* module, mcsh_thing* parent,
 }
 
 static inline mcsh_stmt*
-mcsh_stmt_construct(mcsh_module* module, mcsh_thing* parent,
+mcsh_stmt_new(mcsh_module* module, mcsh_thing* parent,
                     int line)
 {
   mcsh_stmt* stmt = malloc_checked(sizeof(mcsh_stmt));
@@ -1054,7 +1062,7 @@ mcsh_block_start()
   // Start a new block
   mcsh_thing* parent = mcsh.parse_state.target;
   mcsh_thing* thing =
-    mcsh_thing_construct_block(parent->module, parent, line);
+    mcsh_thing_block_new(parent->module, parent, line);
   char text[64];
   thing_str(thing, text);
   printf("block_start(): %s\n", text);
@@ -3158,7 +3166,7 @@ node_to_stmts(mcsh_module* module, mcsh_thing* parent,
   mcsh_node* right = node->children.data[1];
   if (right != NULL)
   {
-    mcsh_stmt* stmt = mcsh_stmt_construct(module, NULL, right->line);
+    mcsh_stmt* stmt = mcsh_stmt_new(module, NULL, right->line);
     list_array_add(&stmts->stmts, stmt);
     pair_to_stmt(module, parent, right, stmt);
     if (added != NULL && !*added)
@@ -3189,7 +3197,7 @@ pair_to_stmt(mcsh_module* module, mcsh_thing* parent,
     mcsh_node* name_node  = right->children.data[0];
     mcsh_node* value_node = right->children.data[1];
     list_array_add(&stmt->things,
-                   mcsh_thing_construct_token(module, "="));
+                   mcsh_thing_token_new_string(module, "="));
     list_array_add(&stmt->things,
                    node_to_thing(module, parent, name_node));
     list_array_add(&stmt->things,
@@ -3203,11 +3211,20 @@ pair_to_stmt(mcsh_module* module, mcsh_thing* parent,
 }
 
 mcsh_thing*
-mcsh_thing_from_value(mcsh_module* module, mcsh_value* value)
+mcsh_thing_token_new_value(mcsh_module* module, mcsh_value* value)
 {
-  valgrind_assert(value->type == MCSH_VALUE_STRING);
-  mcsh_thing* result =
-    mcsh_thing_construct_token(module, value->string);
+  mcsh_thing* result;
+  switch (value->type)
+  {
+    case MCSH_VALUE_STRING:
+      result = mcsh_thing_token_new_string(module, value->string);
+      break;
+    case MCSH_VALUE_INT:
+      result = mcsh_thing_token_new_int(module, value->integer);
+      break;
+    default:
+      valgrind_fail_msg("mcsh_thing_from_value: bad value");
+  }
   return result;
 }
 
@@ -3253,7 +3270,7 @@ node_to_thing_token(mcsh_module* module, mcsh_node* node)
 {
   char* token = node->children.data[0];
   // printf("node_to_thing_token: '%s'\n", token);
-  mcsh_thing* thing = mcsh_thing_construct_token(module, token);
+  mcsh_thing* thing = mcsh_thing_token_new_string(module, token);
   return thing;
 }
 
@@ -3264,7 +3281,7 @@ node_to_thing_block(mcsh_module* module, mcsh_thing* parent,
   mcsh_node* child = node->children.data[0];
   // printf("node_to_thing_block.\n");
   // mcsh_thing* thing = mcsh_thing_construct_token(token);
-  mcsh_thing* block = mcsh_thing_construct_block(module, parent, -1);
+  mcsh_thing* block = mcsh_thing_block_new(module, parent, -1);
   node_to_stmts(module, parent,
                 child, &block->data.block->stmts, NULL);
   return block;
@@ -3275,7 +3292,7 @@ node_to_thing_subcmd(mcsh_module* module, mcsh_thing* parent,
                     mcsh_node* node)
 {
   mcsh_node* child = node->children.data[0];
-  mcsh_thing* subcmd = mcsh_thing_construct_subcmd(module, parent, -1);
+  mcsh_thing* subcmd = mcsh_thing_subcmd_new(module, parent, -1);
   node_to_stmts(module, parent,
                 child, &subcmd->data.subcmd->stmts, NULL);
   return subcmd;
@@ -3288,7 +3305,7 @@ node_to_thing_subfun(mcsh_module* module, mcsh_thing* parent,
   mcsh_node* child = node->children.data[0];
   // printf("node_to_thing_subfun.\n");
   // mcsh_thing* thing = mcsh_thing_construct_token(token);
-  mcsh_thing* subfun = mcsh_thing_construct_subfun(module, parent, -1);
+  mcsh_thing* subfun = mcsh_thing_subfun_new(module, parent, -1);
   node_to_stmts(module, parent,
                 child, &subfun->data.subfun->stmts, NULL);
   return subfun;

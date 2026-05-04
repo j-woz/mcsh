@@ -1489,8 +1489,9 @@ builtin_bg(mcsh_bb* bb)
   list_array_add(&stmts.stmts, &stmt);
   for (size_t i = 1; i < bb->args->size; i++)
   {
-    mcsh_thing* thing = mcsh_thing_from_value(bb->module,
-                                              bb->args->data[i]);
+    LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "bg: %i", i);
+    mcsh_thing* thing = mcsh_thing_token_new_value(bb->module,
+                                                   bb->args->data[i]);
     list_array_add(&stmt.things, thing);
   }
 
@@ -1516,8 +1517,7 @@ builtin_bg(mcsh_bb* bb)
 static bool
 builtin_wait(mcsh_bb* bb)
 {
-  // ARG_CHECK(1);
-  EXCEPTION_ARGC_EQ(0)
+  EXCEPTION_ARGC_EQ(1)
   mcsh_value* value = bb->args->data[1];
   mcsh_resolve(value);
   pid_t pid;
