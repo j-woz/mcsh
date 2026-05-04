@@ -19,6 +19,7 @@ if (( ${#H} )) {
 }
 
 if (( ${#J} )) JUMP_TO=${J[2]}
+if (( ${#K} )) SKIP_TO=${K[2]}
 if (( ${#N} )) LIMIT=${N[2]}
 VERBOSITY=${#V}
 
@@ -59,19 +60,19 @@ do
   NUMBER=${TEST[1,4]}
 
   if [[ $NUMBER != <-> ]] \
-       abort "test-all.zsh: bad number '$NUMBER' in $TEST"
+    abort "test-all.zsh: bad number '$NUMBER' in $TEST"
 
-  if (( ${#JUMP_TO} )) {
-    if (( $INDEX > JUMP_TO )) {
-      JUMP_TO="" # stop jumping
-      print stop jumping
+  if (( ${#SKIP_TO} )) {
+    if (( $INDEX > SKIP_TO )) {
+      SKIP_TO="" # stop skipping
+      print stop skipping
     } else {
       continue
     }
   }
-  if (( ${#SKIP_TO} )) {
-    if (( NUMBER == SKIP_TO )) {
-      SKIP_TO="" # stop skipping
+  if (( ${#JUMP_TO} )) {
+    if (( NUMBER == JUMP_TO )) {
+      JUMP_TO="" # stop skipping
     } else {
       continue
     }
