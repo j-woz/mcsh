@@ -123,15 +123,16 @@ mcsh_set_value(mcsh_module* module,
     }
     goto found;
   }
-  // not found yet - store in local entry
+  // not found yet - store in local entry.
+  // Macros run in the parent stack frame, so skip past MACRO entries
+  // when picking the storage entry.
+  // This is a Claude change- not totally checked.
+  mcsh_entry* target = module->vm->stack.current;
+  while (target->type == MCSH_ENTRY_MACRO && target->parent != NULL)
+    target = target->parent;
   LOG(MCSH_LOG_DATA, MCSH_INFO,
       "variable not found: creating local: '%s'", name);
-  // printf("vm: %p\n", module->vm);
-  // printf("vm stack current: %p\n", module->vm->stack.current);
-  // printf("  in entry: %zi %p\n", module->vm->stack.current->id,
-     //    module->vm->stack.current);
-
-  strmap_add(&module->vm->stack.current->vars, name, value);
+  strmap_add(&target->vars, name, value);
   mcsh_value_grab(&module->vm->logger, value);
   // module->vm->stack.current
   found:
