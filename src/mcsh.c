@@ -803,8 +803,8 @@ mcsh_stmt_init(mcsh_stmt* stmt,
 }
 
 /** Get a unique object id for each parsed item */
-static int
-parse_id(void)
+static inline int
+parse_id (void)
 {
   return ++mcsh.parse_state.id;
 }
@@ -1612,6 +1612,13 @@ mcsh_signature_parse(mcsh_module* module,
                      mcsh_block* sgtokens,
                      mcsh_status* status)
 {
+  if (sgtokens->stmts.stmts.size == 0)
+  {
+    signature->count = 0;
+    signature->extras = false;
+    signature->slots = NULL;
+    return true;
+  }
   mcsh_stmt* stmt0 = sgtokens->stmts.stmts.data[0];
   list_array* T = &stmt0->things;
   size_t N = list_array_size(T);
