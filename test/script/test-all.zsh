@@ -65,7 +65,6 @@ do
   if (( ${#SKIP_TO} )) {
     if (( $INDEX > SKIP_TO )) {
       SKIP_TO="" # stop skipping
-      print stop skipping
     } else {
       continue
     }
