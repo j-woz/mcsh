@@ -117,7 +117,7 @@ if (( REDIRECT )) {
   alias -g output=""
 }
 
-if $VG bin/mcsh $TEST_ARGS_MCSH $TEST $TEST_ARGS_SCRIPT ${*} output
+if $VG bin/mcsh $TEST_ARGS_MCSH $TEST $=TEST_ARGS_SCRIPT ${*} output
 then
   if (( ! TEST_FAIL )) SUCCESS=1
 else
