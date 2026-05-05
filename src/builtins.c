@@ -795,7 +795,7 @@ builtin_signature(mcsh_bb* bb)
 {
   mcsh_logger* logger = &bb->module->vm->logger;
   LOG(MCSH_LOG_BUILTIN, MCSH_INFO,
-      "builtin_signature: (%zi) argc=%u\n",
+      "builtin_signature: (%zi) argc=%u",
       bb->args->size, bb->module->vm->argc);
   mcsh_module* module = bb->module;
   mcsh_vm*     vm     = module->vm;
@@ -803,7 +803,7 @@ builtin_signature(mcsh_bb* bb)
   {
     mcsh_value* name = bb->args->data[i];
     mcsh_resolve(name);
-    LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "assign to %s\n", name->string);
+    LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "assign to %s", name->string);
     if (i >= vm->argc)
       RAISE(bb->status, NULL, 0, "mcsh.exception.index_error",
             "signature: could not assign to %s, "
@@ -816,7 +816,7 @@ builtin_signature(mcsh_bb* bb)
     else
     {
       LOG(MCSH_LOG_BUILTIN, MCSH_INFO,
-          "signature: set new global: '%s'\n", name->string);
+          "signature: set new global: '%s'", name->string);
     }
     link_to_global(module, name->string, global);
   }
