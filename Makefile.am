@@ -98,6 +98,9 @@ test_unit_named_args_3_x_LDADD   = lib/libmcsh.a
 test_unit_arg_extras_x_SOURCES = test/unit/arg-extras.c
 test_unit_arg_extras_x_LDADD   = lib/libmcsh.a
 
+# Prevent spurious warning at link time
+ARFLAGS = cr
+
 lib_libmcsh_a_SOURCES = \
 	src/mcsh-expr-grammar.y    src/mcsh-expr-lexer.l    \
 	src/mcsh-expr-parser.c                              \

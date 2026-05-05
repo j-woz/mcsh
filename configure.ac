@@ -16,6 +16,7 @@ m4_include([m4/ax_lib_readline.m4])
 AC_PROG_CC
 AC_PROG_LEX([noyywrap])
 AC_PROG_MAKE_SET
+AM_PROG_AR
 AC_PROG_RANLIB
 AC_PROG_YACC([bison])
 
