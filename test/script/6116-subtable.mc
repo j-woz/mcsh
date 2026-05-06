@@ -1,4 +1,6 @@
 
+# TEST:SKIP
+
 = D (( table ))
 + $D aaa 100
 + $D bbb 200

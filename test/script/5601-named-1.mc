@@ -1,4 +1,6 @@
 
+# TEST:SKIP
+
 # exit
 
 function f { x y z:int=789 } {

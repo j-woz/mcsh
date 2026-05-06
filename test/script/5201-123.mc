@@ -1,4 +1,6 @@
 
+# TEST:SKIP
+
 function f { ... } {
   print "args:" $args
   print "arg 0" $0

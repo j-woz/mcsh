@@ -1,6 +1,6 @@
 
-# TEST:PRE touch f
+# TEST:PRE: touch f
 
 os mv f g
 
-# TEST:POST rm -fv f g
+# TEST:POST: rm -fv f g

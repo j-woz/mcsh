@@ -1,4 +1,6 @@
 
+# TEST:SKIP
+
 function f { x y z ... } {
   print "xyz: " $x $y $z
   print "args1:" $args

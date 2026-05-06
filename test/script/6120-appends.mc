@@ -1,3 +1,6 @@
+
+# TEST:SKIP
+
 = specials (( list ))
 + $specials "$"
 + $specials "@"

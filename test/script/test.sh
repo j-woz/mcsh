@@ -84,15 +84,15 @@ TEST_ARGS_MCSH=""
 if grep -q "TEST:ARGS_MCSH" $TEST
 then
   TEST_ARGS_MCSH=$( sed -n 's/.*TEST:ARGS_MCSH: \(.*\)/\1/p' $TEST )
-  # print "TEST_ARGS_MCSH: $TEST_ARGS_MCSH"
+  if (( VERBOSITY >= 2 )) print "TEST_ARGS_MCSH $TEST_ARGS_MCSH"
 fi
 
-# Arguments passed to mcsh (before the user script)
+# Arguments passed to the user script
 TEST_ARGS_SCRIPT=""
 if grep -q "TEST:ARGS_SCRIPT" $TEST
 then
   TEST_ARGS_SCRIPT=$( sed -n 's/.*TEST:ARGS_SCRIPT: \(.*\)/\1/p' $TEST )
-  # print "TEST_ARGS_SCRIPT: $TEST_ARGS_SCRIPT"
+  if (( VERBOSITY >= 2 )) print "TEST_ARGS_SCRIPT: $TEST_ARGS_SCRIPT"
 fi
 
 CODE=0
@@ -117,10 +117,10 @@ if (( REDIRECT )) {
   alias -g output=""
 }
 
-if grep -q "TEST:PRE" $TEST
+if grep -q "TEST:PRE:" $TEST
 then
-  CMD_PRE=$( $THIS/test-text.awk -v TOKEN="TEST:PRE" < $TEST )
-  if (( VERBOSITY >= 2 )) print "TEST:PRE '${CMD_PRE}'"
+  CMD_PRE=$( $THIS/test-text.awk -v TOKEN="TEST:PRE:" < $TEST )
+  if (( VERBOSITY >= 2 )) print "TEST:PRE: '${CMD_PRE}'"
   $=CMD_PRE
 fi
 
@@ -154,12 +154,12 @@ if (( SUCCESS && REDIRECT )) {
 }
 
 # Execute each TEST:POST:
-if grep -q "TEST:POST" $TEST
+if grep -q "TEST:POST:" $TEST
 then
-  grep "TEST:POST" $TEST | while read LINE
+  grep "TEST:POST:" $TEST | while read LINE
   do
-    CMD_POST=$( echo $LINE | $THIS/test-text.awk -v TOKEN="TEST:POST" )
-    if (( VERBOSITY >= 2 )) print "test.sh: TEST:POST '${CMD_POST}'"
+    CMD_POST=$( echo $LINE | $THIS/test-text.awk -v TOKEN="TEST:POST:" )
+    if (( VERBOSITY >= 2 )) print "test.sh: TEST:POST: '${CMD_POST}'"
     if ! $=CMD_POST
     then
       print "test.sh: TEST:POST failed!"

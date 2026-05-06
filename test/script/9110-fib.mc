@@ -1,4 +1,6 @@
 
+# TEST:ARGS_SCRIPT: 3
+
 signature n
 
 if { $ $n < 0 } {
