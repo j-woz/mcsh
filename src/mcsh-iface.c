@@ -23,16 +23,20 @@ static bool iface_get_plain   (const char* prompt, char** line);
 
 static bool initialized = false;
 
+#ifdef HAVE_LIBREADLINE
 static char* history_file = NULL;
+#endif
 
 static inline void
 iface_init(void)
 {
+  // The only real work in here is if readline/history are enabled
+
   if (initialized) return;
   initialized = true;
-#ifndef HAVE_LIBREADLINE
-  return;
-#endif
+
+#ifdef HAVE_LIBREADLINE
+
   char* home = getenv("HOME");
   struct stat s;
   int rc;
@@ -53,7 +57,6 @@ iface_init(void)
 
   use_config_mcsh:
 
-#ifdef HAVE_LIBREADLINE
   strcat(p, "/mcsh.history");
   history_file = strdup(p);
   // printf("history_file: %s\n", history_file);
