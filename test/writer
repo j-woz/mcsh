@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # WRITER: Writes arguments to FILE
+# Supports some test cases
 
 if [ ${#} = 0 ]
 then
