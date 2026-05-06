@@ -19,7 +19,7 @@ if (( ${#H} )) {
   print "  -l  Enable valgrind leak check (summary)"
   print "  -L  Enable valgrind leak check (full)"
   print "  -o  Redirect output to .out file"
-  print "  -q  Quiet (verbosity 0)"
+  print "  -q  Quiet   (verbosity 0)"
   print "  -v  Verbose (verbosity 2)"
   return
 }
