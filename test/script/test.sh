@@ -154,17 +154,19 @@ if (( SUCCESS && REDIRECT )) {
 }
 
 # Execute each TEST:POST:
-grep "TEST:POST" $TEST | while true
-do
-  read LINE
-  CMD_POST=$( echo $LINE | $THIS/test-text.awk -v TOKEN="TEST:POST" )
-  if (( VERBOSITY >= 2 )) print "test.sh: TEST:POST '${CMD_POST}'"
-  if ! $=CMD_POST
-  then
-    print "test.sh: TEST:POST failed!"
-    return 1
-  fi
-done
+if grep -q "TEST:POST" $TEST
+then
+  grep "TEST:POST" $TEST | while read LINE
+  do
+    CMD_POST=$( echo $LINE | $THIS/test-text.awk -v TOKEN="TEST:POST" )
+    if (( VERBOSITY >= 2 )) print "test.sh: TEST:POST '${CMD_POST}'"
+    if ! $=CMD_POST
+    then
+      print "test.sh: TEST:POST failed!"
+      return 1
+    fi
+  done
+fi
 
 if (( ! SUCCESS )) {
   echo "TEST CODE:  $CODE"
