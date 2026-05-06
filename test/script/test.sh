@@ -117,6 +117,13 @@ if (( REDIRECT )) {
   alias -g output=""
 }
 
+if grep -q "TEST:PRE" $TEST
+then
+  CMD_PRE=$( $THIS/test-text.awk -v TOKEN="TEST:PRE" < $TEST )
+  if (( VERBOSITY >= 2 )) print "TEST:PRE '${CMD_PRE}'"
+  $=CMD_PRE
+fi
+
 if $VG bin/mcsh $TEST_ARGS_MCSH $TEST $=TEST_ARGS_SCRIPT ${*} output
 then
   if (( ! TEST_FAIL )) SUCCESS=1
@@ -145,6 +152,17 @@ if (( SUCCESS && REDIRECT )) {
     done
   fi
 }
+
+if grep -q "TEST:POST" $TEST
+then
+  CMD_POST=$( $THIS/test-text.awk -v TOKEN="TEST:POST" < $TEST )
+  if (( VERBOSITY >= 2 )) print "TEST:POST '${CMD_POST}'"
+  if ! $=CMD_POST
+  then
+    print "test.sh: TEST:POST failed!"
+    return 1
+  fi
+fi
 
 if (( ! SUCCESS )) {
   echo "TEST CODE:  $CODE"
