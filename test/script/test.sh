@@ -153,16 +153,18 @@ if (( SUCCESS && REDIRECT )) {
   fi
 }
 
-if grep -q "TEST:POST" $TEST
-then
-  CMD_POST=$( $THIS/test-text.awk -v TOKEN="TEST:POST" < $TEST )
-  if (( VERBOSITY >= 2 )) print "TEST:POST '${CMD_POST}'"
+# Execute each TEST:POST:
+grep "TEST:POST" $TEST | while true
+do
+  read LINE
+  CMD_POST=$( echo $LINE | $THIS/test-text.awk -v TOKEN="TEST:POST" )
+  if (( VERBOSITY >= 2 )) print "test.sh: TEST:POST '${CMD_POST}'"
   if ! $=CMD_POST
   then
     print "test.sh: TEST:POST failed!"
     return 1
   fi
-fi
+done
 
 if (( ! SUCCESS )) {
   echo "TEST CODE:  $CODE"
