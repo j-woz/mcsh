@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# WRITER: Writes arguments to FILE
+
+if [ ${#} = 0 ]
+then
+  echo "Provide FILE!"
+  exit 1
+fi
+
+FILE=$1
+
+if [ -f $FILE ]
+then
+  mv --backup=numbered --no-target-directory ${FILE} ${FILE}.bak
+fi
+
+if ! touch $FILE
+then
+  echo "writer: could not touch $FILE"
+  exit 1
+fi
+
+shift
+echo $* > $FILE
