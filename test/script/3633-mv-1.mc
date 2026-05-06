@@ -3,4 +3,4 @@
 
 os mv f g
 
-# TEST:POST rm -v f g
+# TEST:POST rm -fv f g
