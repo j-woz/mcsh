@@ -15,6 +15,7 @@ if (( ${#H} )) {
   print "  -k SKIP    SKIP NUMBER of tests"
   print "  -n LIMIT   Stop after LIMIT tests"
   print "  -v         Increase verbosity (repeatable)"
+  print "  -vvv       Turns on set -x"
   return
 }
 
@@ -26,6 +27,8 @@ VERBOSITY=${#V}
 THIS=${${0:h}:A}
 cd $THIS/../..
 source ./scripts/util.zsh
+
+if (( VERBOSITY >= 3 )) set -x
 
 if (( $#JUMP_TO > 0 )) && [[ $JUMP_TO != <-> ]] \
                             abort "Bad JUMP_TO: '$JUMP_TO'"
@@ -44,6 +47,12 @@ if (( ${MAKE:-1} )) {
 export MAKE=0
 
 cd $THIS
+
+if (( VERBOSITY == 0 )) {
+  TEST_VERBOSITY="-q"
+} else {
+  TEST_VERBOSITY=( $V )
+}
 
 TESTS=( [0-9]*.mc )
 COUNT=$#TESTS
@@ -83,7 +92,8 @@ do
     print "...."
     print
   }
-  ./test.sh -oq $LABEL
+
+  ./test.sh -o $TEST_VERBOSITY $LABEL
   if (( VERBOSITY )) print
 done
 print "TEST ALL: OK.  COUNT=$COUNT"
