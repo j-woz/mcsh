@@ -51,4 +51,4 @@ jobs:
 
       - name: Tests
         run: |
-          test/script/test-all.zsh -v
+          test/script/test-all.zsh -vv
