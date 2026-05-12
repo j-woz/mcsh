@@ -39,7 +39,7 @@ jobs:
 
       - name: Configure
         run: |
-          ./configure --prefix=$HOME/mcsh-install
+          ./configure --prefix=$HOME/mcsh-install --disable-readline
 
       - name: Make
         run: |
