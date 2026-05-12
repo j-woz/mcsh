@@ -54,7 +54,7 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
   return STRING;
 }
 
-"=" { return EQ; }
+"=" { mcsh_script_token_quoted = false; return EQ; }
 
 [\[\]_:.,$#@!?+\-~*/%<>a-zA-Z0-9()]+      {
   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
