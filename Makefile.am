@@ -8,7 +8,6 @@ AM_CPPFLAGS = -I . -I src
 AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always -Wshadow
 # -pedantic
 AM_YFLAGS = -d
-AM_LDFLAGS = @LIBREADLINE@
 
 all: $(bin_PROGRAMS)
 
