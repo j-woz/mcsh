@@ -35,6 +35,11 @@ if (( $#JUMP_TO > 0 )) && [[ $JUMP_TO != <-> ]] \
 if (( $#SKIP_TO > 0 )) && [[ $SKIP_TO != <-> ]] \
                             abort "Bad SKIP_TO: '$SKIP_TO'"
 
+if ! which valgrind
+then
+  export VALGRIND=0
+fi
+
 if (( ${MAKE:-1} )) {
   make bin/mcsh
   if (( ${pipestatus[1]} != 0 )) {
