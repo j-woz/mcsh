@@ -51,9 +51,8 @@ jobs:
 
       - name: Sanity mcsh
         run: |
-          ldd bin/mcsh
           bin/mcsh -h
 
       - name: Tests
         run: |
-          test/script/test-all.zsh -k 50
+          test/script/test-all.zsh
