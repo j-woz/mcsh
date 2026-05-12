@@ -41,7 +41,7 @@ jobs:
         run: |
           ./configure --prefix=$HOME/mcsh-install --disable-readline
 
-      - name: Make
+      - name: Make mcsh
         run: |
           make bin/mcsh
 
