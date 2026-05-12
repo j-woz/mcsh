@@ -7,9 +7,6 @@
 
 #include "mcsh-parser.h"
 
-// in mcsh.c
-extern bool mcsh_script_token_quoted;
-
 mcsh_node* mcsh_script_token(char* term, int line);
 
 mcsh_node* mcsh_node_term(mcsh_node* left, mcsh_node* right,

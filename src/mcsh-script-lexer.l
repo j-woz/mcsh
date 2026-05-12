@@ -18,7 +18,6 @@
 
 STRINGLITERAL ["](([\\]["])|([^"]))*["]
 
-   bool mcsh_script_token_quoted;
    int mcsh_script_line = 1;
 
 %%
@@ -26,7 +25,6 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 {STRINGLITERAL} {
   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
            "lexer: STRINGLITERAL: '%s'", mcsh_script_text);
-  mcsh_script_token_quoted = true;
   mcsh_script_lval.sval = strdup(mcsh_script_text);
   return STRING;
 }
@@ -54,12 +52,11 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
   return STRING;
 }
 
-"=" { mcsh_script_token_quoted = false; return EQ; }
+"=" { return EQ; }
 
 [\[\]_:.,$#@!?+\-~*/%<>a-zA-Z0-9()]+      {
   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
            "lexer: STRING: '%s'", mcsh_script_text);
-  mcsh_script_token_quoted = false;
   mcsh_script_lval.sval = strdup(mcsh_script_text);
   return STRING;
 }
