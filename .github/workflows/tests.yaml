@@ -52,5 +52,4 @@ jobs:
 
       - name: Tests
         run: |
-          ls -l test/script/test-all.zsh
           test/script/test-all.zsh
