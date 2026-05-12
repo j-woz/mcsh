@@ -49,7 +49,7 @@ jobs:
         run: |
           make bin/mcsh
 
-      - name: Sanity: mcsh
+      - name: Sanity mcsh
         run: |
           ldd bin/mcsh
           bin/mcsh -h
