@@ -43,7 +43,7 @@ jobs:
 
       - name: Make
         run: |
-          make
+          make bin/mcsh
 
       - name: Tests
         run: |
