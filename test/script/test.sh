@@ -81,7 +81,7 @@ fi
 
 # Arguments passed to mcsh (before the user script)
 TEST_ARGS_MCSH=""
-if grep -q "TEST:ARGS_MCSH" $TEST
+if grep -q "TEST:ARGS_MCSH:" $TEST
 then
   TEST_ARGS_MCSH=$( sed -n 's/.*TEST:ARGS_MCSH: \(.*\)/\1/p' $TEST )
   if (( VERBOSITY >= 2 )) print "TEST_ARGS_MCSH $TEST_ARGS_MCSH"
@@ -89,7 +89,7 @@ fi
 
 # Arguments passed to the user script
 TEST_ARGS_SCRIPT=""
-if grep -q "TEST:ARGS_SCRIPT" $TEST
+if grep -q "TEST:ARGS_SCRIPT:" $TEST
 then
   TEST_ARGS_SCRIPT=$( sed -n 's/.*TEST:ARGS_SCRIPT: \(.*\)/\1/p' $TEST )
   if (( VERBOSITY >= 2 )) print "TEST_ARGS_SCRIPT: $TEST_ARGS_SCRIPT"
