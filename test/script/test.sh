@@ -135,9 +135,9 @@ fi
 if (( SUCCESS && REDIRECT )) {
   if grep -q "TEST:EXPECT:" $TEST
   then
+    # NOTE: TEST:EXPECT: output is only tested if redirecting!
     TEST_EXPECT=$( sed -n 's/.*TEST:EXPECT: \(.*\)/\1/p' $TEST )
     EXPECTEDS=( ${(f)TEST_EXPECT} )
-    print "EXPECTED TOTAL: $#EXPECTEDS"
     COUNT=1
     for EXPECTED in $EXPECTEDS
     do
