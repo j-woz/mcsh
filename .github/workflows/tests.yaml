@@ -35,8 +35,7 @@ jobs:
 
       - name: Install software
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zsh
+          .github/workflows/install-zsh.sh
 
       - name: Bootstrap
         run: |
