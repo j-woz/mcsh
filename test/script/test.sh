@@ -11,7 +11,7 @@ VERBOSITY=1
 
 LEAK=""
 # -F : fail on unknown flags
-zparseopts -D -E -F h=H l=LEAK L=LEAK o=R q=QUIET v=V
+zparseopts -D -E -F h=H l=LEAK L=LEAK o=R q=QUIET v+=V
 
 if (( ${#H} )) {
   print "Usage: test.sh [-h] [-l|-L] [-o] [-q] [-v] LABEL"
@@ -20,13 +20,16 @@ if (( ${#H} )) {
   print "  -L  Enable valgrind leak check (full)"
   print "  -o  Redirect output to .out file"
   print "  -q  Quiet   (verbosity 0)"
-  print "  -v  Verbose (verbosity 2)"
+  print "  -v    Increase verbosity (repeatable)"
+  print "  -vvv  Turns on set -x"
   return
 }
 
 if (( ${#QUIET} )) VERBOSITY=0
 if (( ${#R}     )) REDIRECT=1
-if (( ${#V}     )) VERBOSITY=2
+if (( ${#V}     )) VERBOSITY=${#V}
+
+if (( VERBOSITY >= 3 )) set -x
 
 if (( ${#*} < 1 )) {
   print "test.sh: Provide a test LABEL!"
@@ -170,7 +173,7 @@ then
 fi
 
 if (( ! SUCCESS )) {
-  echo "TEST CODE:  $CODE"
+  echo "TEST CODE:   $CODE"
   echo "TEST FAILED: $LABEL"
   return 1
 }
