@@ -100,7 +100,8 @@ SUCCESS=0
 
 # Possibly turn on valgrind:
 export VALGRIND=${VALGRIND:-1}
-if [[ $OS == "Cygwin" ]] VALGRIND=0
+# Disable valgrind on Cygwin:
+if [[ $( uname ) == CYGWIN* ]] VALGRIND=0
 if (( VALGRIND )) {
   V_FLAG=""
   if (( VERBOSITY >= 2 )) V_FLAG="-v"
