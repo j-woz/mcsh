@@ -7,15 +7,15 @@ mcsh_script_token(char* term, int line)
 {
   // Derive quoted-ness from the term itself rather than a global flag.
   // The lexer's unquoted STRING regex excludes '"', so a token is quoted
-  // iff it starts with '"'. The global flag is unreliable: bison's
+  // iff it starts with '"'. The old global flag was unreliable: bison's
   // one-token lookahead means the flag at reduction time may reflect
   // the next token rather than the one being reduced.
   size_t len = strlen(term);
   char* p;
   size_t count;
-  if (len >= 2 && term[0] == '"' && term[len-1] == '"')
+  bool quoted = (len >= 2 && term[0] == '"' && term[len-1] == '"');
+  if (quoted)
   {
-    // Remove double-quotes
     p = &term[1];
     count = len - 2;
   }
@@ -26,6 +26,7 @@ mcsh_script_token(char* term, int line)
   }
 
   mcsh_node* node = mcsh_node_token_sized(p, count, line);
+  node->quoted = quoted;
   return node;
 }
 

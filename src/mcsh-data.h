@@ -8,6 +8,7 @@ void mcsh_data_init(mcsh_vm* vm);
 
 bool mcsh_token_to_value(mcsh_logger* logger,
                          mcsh_entry* entry, const char* token,
+                         bool quoted,
                          mcsh_value** output, mcsh_status* status);
 
 void mcsh_stack_print(mcsh_module* module);

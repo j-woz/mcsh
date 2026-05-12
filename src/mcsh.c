@@ -917,6 +917,7 @@ mcsh_thing_token_new_string(mcsh_module* module, const char* token)
   thing->type = MCSH_THING_TOKEN;
   thing->data.token = malloc_checked(sizeof(mcsh_token));
   thing->data.token->text = strdup(token);
+  thing->data.token->quoted = false;
   thing->module = module;
   return thing;
 }
@@ -1191,6 +1192,7 @@ hp_variable(mcsh_vm* vm, buffer* line, const char** start)
   mcsh_token_to_value(&vm->logger,
                       vm->stack.current,
                       code.data,
+                      false,
                       (void*) &result,
                       &status);
   char t[1024];
@@ -1562,6 +1564,7 @@ mcsh_signature_init_block(mcsh_signature* sg,
     mcsh_token_to_value(&vm->logger,
                         vm->stack.current,
                         thing->data.token->text,
+                        thing->data.token->quoted,
                         &value,
                         status);
 
@@ -1649,6 +1652,7 @@ mcsh_signature_parse(mcsh_module* module,
       printf("dflt: '%s'   \n", d);
       bool rc = mcsh_token_to_value(&module->vm->logger,
                                     module->vm->stack.current, d,
+                                    false,
                                     &dflt, status);
       CHECK0(rc);
     }
@@ -2067,6 +2071,7 @@ do_token(mcsh_logger* logger, mcsh_module* module,
       rc = mcsh_token_to_value(logger,
                                module->vm->stack.current,
                                token->data.token->text,
+                               token->data.token->quoted,
                                (void*) &value,
                                status);
       CHECK(rc, "could not convert token to string: '%s'",
@@ -3278,6 +3283,7 @@ node_to_thing_token(mcsh_module* module, mcsh_node* node)
   char* token = node->children.data[0];
   // printf("node_to_thing_token: '%s'\n", token);
   mcsh_thing* thing = mcsh_thing_token_new_string(module, token);
+  thing->data.token->quoted = node->quoted;
   return thing;
 }
 

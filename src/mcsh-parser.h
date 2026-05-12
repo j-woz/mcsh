@@ -40,6 +40,7 @@ mcsh_node_construct(mcsh_node_type type, size_t size, int line)
   node->type = type;
   list_array_init(&node->children, size);
   node->line = line;
+  node->quoted = false;
   return node;
 }
 

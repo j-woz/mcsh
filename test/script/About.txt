@@ -22,7 +22,7 @@
 155: Active variables (mapped to C functions)
 16: Globals
 
-17:
+17: Types
 
 18: Functions
 

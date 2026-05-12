@@ -234,6 +234,9 @@ op_to_string(char* s, mcsh_operator op)
 typedef struct
 {
   char* text;
+  /** True if this token came from a quoted string literal in source.
+      Suppresses integer/float coercion in to_value. */
+  bool quoted;
 } mcsh_token;
 
 typedef struct
@@ -375,6 +378,8 @@ typedef struct
   list_array children;
   /// Line number in user script
   int line;
+  /// For TOKEN nodes: source-level quoted-string-literal marker.
+  bool quoted;
 } mcsh_node;
 
 typedef enum

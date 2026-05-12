@@ -35,6 +35,7 @@ mcsh_node_token_sized(char const* text, size_t count, int line)
   // printf("mcsh_node_token: '%s'\n", text);
   mcsh_node* node = malloc_checked(sizeof(*node));
   node->type = MCSH_NODE_TYPE_TOKEN;
+  node->quoted = false;
   list_array_init(&node->children, 1);
   char* t = strndup(text, count);
   list_array_add(&node->children, t);

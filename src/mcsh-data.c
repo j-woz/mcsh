@@ -36,6 +36,9 @@ typedef struct
   mcsh_logger* logger;
   mcsh_entry* entry;
   mcsh_status* status;
+  /** True if the source token was a quoted string literal.
+      When true, suppresses integer/float coercion of the bare text. */
+  bool quoted;
 } context;
 
 bool
@@ -351,12 +354,14 @@ static bool to_value(context* ctx, const char* token,
 bool
 mcsh_token_to_value(mcsh_logger* logger,
                     mcsh_entry* entry, const char* token,
+                    bool quoted,
                     mcsh_value** output, mcsh_status* status)
 {
   context ctx;
   ctx.logger = logger;
   ctx.entry = entry;
   ctx.status = status;
+  ctx.quoted = quoted;
   LOG(MCSH_LOG_DATA, MCSH_DEBUG, "token_to_value: '%s'", token);
   return to_value(&ctx, token, output);
 }
@@ -465,7 +470,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     // Handle literals!
     // TODO: Handle float literals
     size_t integer;
-    if (is_integer(token, &integer)) {
+    if (!ctx->quoted && is_integer(token, &integer)) {
       value = mcsh_value_new_int(integer);
     } else {
       value = mcsh_value_new_string(ctx->entry->module->vm, token);
