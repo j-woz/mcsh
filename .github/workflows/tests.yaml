@@ -47,4 +47,6 @@ jobs:
 
       - name: Tests
         run: |
+          pwd
+          ls
           test/script/test-all.zsh
