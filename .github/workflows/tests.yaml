@@ -33,6 +33,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install software
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh
+
       - name: Bootstrap
         run: |
           ./bootstrap
@@ -47,6 +52,5 @@ jobs:
 
       - name: Tests
         run: |
-          pwd
-          ls
+          ls -l test/script/test-all.zsh
           test/script/test-all.zsh
