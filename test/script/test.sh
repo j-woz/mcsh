@@ -72,6 +72,7 @@ if (( ${MAKE:-1} )) {
 
 if grep -q "TEST:SKIP" $TEST
 then
+  if (( VERBOSITY >= 2 )) print "TEST_SKIP: $TEST"
   return
 fi
 
