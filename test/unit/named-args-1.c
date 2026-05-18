@@ -43,5 +43,5 @@ main()
   mcsh_parameters_finalize(&P);
   mcsh_signature_finalize(&sg);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
