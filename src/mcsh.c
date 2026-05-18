@@ -1610,6 +1610,12 @@ slot_init(mcsh_slot* slot,
 }
 
 bool
+sg_parse_item(mcsh_module* module,
+              mcsh_signature* signature,
+              size_t i, mcsh_thing* thing,
+              mcsh_status* status);
+
+bool
 mcsh_signature_parse(mcsh_module* module,
                      mcsh_signature* signature,
                      mcsh_block* sgtokens,
@@ -1636,37 +1642,8 @@ mcsh_signature_parse(mcsh_module* module,
     // mcsh_value* value;
     // mcsh_status status;
 
-    // NTD => Name-Type-Dflt name[:type][=dflt]
-    char* ntd = strdup(thing->data.token->text);
-    mcsh_value* dflt = NULL;
-    mcsh_value_type type = MCSH_VALUE_ANY;
-    char* p;
-    char* d = NULL; // default string
-    char* q = NULL;
-    p = strchr(ntd, '=');
-    if (p != NULL)
-    {
-      d = p + 1;
-      printf("dflt string: '%s'\n", d);
-      *p = '\0';
-      printf("dflt: '%s'   \n", d);
-      bool rc = mcsh_token_to_value(&module->vm->logger,
-                                    module->vm->stack.current, d,
-                                    false,
-                                    &dflt, status);
-      CHECK0(rc);
-    }
-    p = strchr(ntd, ':');
-    if (p != NULL)
-    {
-      q = p + 1;
-      mcsh_value_type_code(q, &type);
-      *p = '\0';
-    }
-    printf("name: '%s'   \n", ntd);
-    // printf("name: '%s'  dflt: '%s'   type=%i \n", ntd, q, type);
-    slot_init(&signature->slots[i],
-              ntd, dflt, type);
+    bool rc = sg_parse_item(module, signature, i, thing, status);
+    CHECK0(rc);
 
     /*
     mcsh_token_to_value(&vm->logger,
@@ -1681,6 +1658,49 @@ mcsh_signature_parse(mcsh_module* module,
   }
 
   printf("signature_parse: %zu\n", N);
+  return true;
+}
+
+bool
+sg_parse_item(mcsh_module* module,
+              mcsh_signature* signature,
+              size_t i, mcsh_thing* thing,
+              mcsh_status* status)
+{
+  // Name-Type-Dflt name[:type[:dflt]]
+  //                type may be the empty string
+  char* t = strdupa(thing->data.token->text);
+  mcsh_value* dflt = NULL;
+  mcsh_value_type type = MCSH_VALUE_ANY;
+  char* c1 = strchr(t, ':');
+  if (c1 == NULL)
+  {
+    goto end;
+  }
+  char* c2 = strchrnul(c1+1, ':');
+
+  if (*c2 != '\0')
+  {
+    char* d = c2 + 1;
+    printf("dflt string: '%s'\n", d);
+    printf("dflt: '%s'   \n", d);
+    bool rc = mcsh_token_to_value(&module->vm->logger,
+                                  module->vm->stack.current, d,
+                                  false,
+                                  &dflt, status);
+    CHECK0(rc);
+  }
+
+  // Get type:
+  if (c2 > c1 + 1)
+  {
+    *c2 = '\0';
+    mcsh_value_type_code(c1 + 1, &type);
+  }
+  end:
+  if (c1 != NULL) *c1 = '\0';
+  printf("name: '%s' type=%i \n", t, type);
+  slot_init(&signature->slots[i], t, dflt, type);
   return true;
 }
 
@@ -2878,7 +2898,7 @@ set_defaults(mcsh_signature* sg, mcsh_parameters* P,
       }
       else
       {
-        printf("did not assign to: '%s'", sg->slots[j].name);
+        // printf("did not assign to: '%s'\n", sg->slots[j].name);
         RAISE(status, NULL, 0,
               "mcsh.invalid_arguments",
               "did not assign to: '%s'", sg->slots[j].name);
