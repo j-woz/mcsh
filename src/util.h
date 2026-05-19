@@ -30,6 +30,7 @@
 #define UNUSED   __attribute__((unused))
 #define NORETURN __attribute__((noreturn))
 
+/** Distinguishes from other output */
 void show(const char* format, ...)
   __attribute__ ((format (printf, 1, 2)));
 
