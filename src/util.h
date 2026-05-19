@@ -162,7 +162,7 @@ strdup_checked(char* ptr)
 
 /** Like strdup but NULL is allowed */
 static inline char*
-strdup_null_checked(char* ptr)
+strdup_null_checked(const char* ptr)
 {
   char* result;
   if (ptr != NULL)

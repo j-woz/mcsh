@@ -673,11 +673,11 @@ void mcsh_subcmd_start(void);
 
 void mcsh_subfun_start(void);
 
-void mcsh_raise(mcsh_status* status, char* source, int line,
+bool mcsh_raise(mcsh_status* status, const char* source, int line,
                 const char* tag, const char* fmt, ...);
 
 /** Use when line/source are unknown */
-void mcsh_raise0(mcsh_status* status,
+bool mcsh_raise0(mcsh_status* status,
                  const char* tag, const char* fmt, ...);
 
 void mcsh_exception_free(mcsh_exception* exception);

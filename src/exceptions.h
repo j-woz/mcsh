@@ -10,12 +10,12 @@
   } while (0);
 
 /** Conditionally raise exception and return */
-#define RAISE_IF(condition, status, line, source, tag, msg...)    \
+#define RAISE_IF(condition, status, source, line, tag, msg...)    \
   do                                                              \
   {                                                               \
     if (condition)                                                \
     {                                                             \
-      mcsh_raise(status, line, source, tag, msg);                 \
+      mcsh_raise(status, source, line, tag, msg);                 \
       return true;                                                \
     }                                                             \
   } while (0);
@@ -33,7 +33,7 @@
   do                                                \
   {                                                 \
     if (value->type != required)                    \
-    {                                               \
+    {   printf("check failed\n");                   \
       mcsh_exception_invalid_type(status, name,     \
                                   value, required,  \
                                   index);           \

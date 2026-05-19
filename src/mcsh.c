@@ -2192,39 +2192,46 @@ add_word_split_list(list_array* args, mcsh_value* value)
   return true;
 }
 
-void
-raise_va(mcsh_status* status, char* source, int line,
+bool
+raise_va(mcsh_status* status, const char* source, int line,
          const char* tag, const char* fmt, va_list ap)
 {
+  CHECK(tag != NULL,     "tag is NULL!");
+  CHECK(strlen(tag) > 0, "tag is empty!");
   status->code = MCSH_EXCEPTION;
   status->exception = malloc_checked(sizeof(mcsh_exception));
-  status->exception->source = source;
+  status->exception->source = strdup_null_checked(source);
   status->exception->line   = line;
   status->exception->tag    = strdup(tag);
   status->exception->cause  = NULL;
   size_t n = vasprintf(&status->exception->text, fmt, ap);
   va_end(ap);
   valgrind_assert(n > 0);
+  return true;
 }
 
-void
-mcsh_raise(mcsh_status* status, char* source, int line,
+bool
+mcsh_raise(mcsh_status* status, const char* source, int line,
            const char* tag, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
-  raise_va(status, source, line, tag, fmt, ap);
+  bool rc = raise_va(status, source, line, tag, fmt, ap);
   va_end(ap);
+  CHECK0(rc);
+  return true;
 }
 
-void
+bool
 mcsh_raise0(mcsh_status* status,
            const char* tag, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
-  raise_va(status, NULL, 0, tag, fmt, ap);
+  bool rc = raise_va(status, NULL, 0, tag, fmt, ap);
   va_end(ap);
+  CHECK0(rc);
+  return true;
 }
 
 void
@@ -2740,14 +2747,15 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
   return true;
 }
 
-static inline void set_positional_next(mcsh_signature* sg,
+static inline bool set_positional_next(mcsh_signature* sg,
                                        mcsh_value* value,
-                                       mcsh_parameters* P);
+                                       mcsh_parameters* P,
+                                       mcsh_status* status);
 
-static inline void set_positional_at(mcsh_signature* sg,
+static inline bool set_positional_at(mcsh_signature* sg,
                                      mcsh_value* value,
-                                     mcsh_parameters* P, uint16_t j);
-
+                                     mcsh_parameters* P, uint16_t j,
+                                     mcsh_status* status);
 
 static inline bool set_named(mcsh_signature* sg, mcsh_arg* arg,
                              mcsh_parameters* P);
@@ -2783,9 +2791,12 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
     else
       show("got: '%s'", arg->name->string);
     if (arg->name == NULL)
-      set_positional_next(sg, arg->value, P);
+      set_positional_next(sg, arg->value, P, status);
     else
       set_named(sg, arg, P);
+    // TODO: Handle failed type checks:
+    RAISE_IF(status->code != MCSH_OK, status, NULL, 0,
+             "mcsh.invalid_arguments", "bad argument: %zi", i+1);
   }
 
   set_defaults(sg, P, status);
@@ -2820,17 +2831,17 @@ mcsh_parameters_finalize(mcsh_parameters* P)
   list_array_finalize(&P->extra_values);
 }
 
-static inline void
+static inline bool
 set_positional_next(mcsh_signature* sg, mcsh_value* value,
-                    mcsh_parameters* P)
+                    mcsh_parameters* P, mcsh_status* status)
 {
   printf("set_positional:\n");
   for (uint16_t j = 0; j < sg->count; j++)
   {
     if (P->values[j] == NULL)
     {
-      set_positional_at(sg, value, P, j);
-      return;
+      set_positional_at(sg, value, P, j, status);
+      return true;
     }
   }
 
@@ -2839,18 +2850,30 @@ set_positional_next(mcsh_signature* sg, mcsh_value* value,
   printf("set extra:\n");
   list_array_add(&P->extra_names,  NULL);
   list_array_add(&P->extra_values, value);
+  return true;
 }
 
-static inline void
+static inline bool
 set_positional_at(mcsh_signature* sg, mcsh_value* value,
-                  mcsh_parameters* P, uint16_t j)
+                  mcsh_parameters* P, uint16_t j,
+                  mcsh_status* status)
 {
-  printf("%i orig %p\n", j, sg->slots[j].name);
+  printf("set_positional_at ...\n");
+  char* name = sg->slots[j].name;
+  if (sg->slots[j].type != MCSH_VALUE_ANY)
+  {
+    printf("type check\n");
+    TYPE_CHECK(value, sg->slots[j].type, status, name, j,
+               "bad type");
+  }
+
+  printf("%i orig %p\n", j, name);
   P->names[j] = strdup_null_checked(sg->slots[j].name);
   printf("%i name %p '%s'\n", j, P->names[j], P->names[j]);
   P->count++;
   P->values[j] = value;
   mcsh_value_grab(NULL, value);
+  return true;
 }
 
 static inline bool
@@ -2894,7 +2917,7 @@ set_defaults(mcsh_signature* sg, mcsh_parameters* P,
       printf(" found NULL\n");
       if (sg->slots[j].dflt != NULL)
       {
-        set_positional_at(sg, sg->slots[j].dflt, P, j);
+        set_positional_at(sg, sg->slots[j].dflt, P, j, status);
       }
       else
       {
