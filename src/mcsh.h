@@ -31,6 +31,7 @@ struct mcsh_stmts
   list_array stmts;
 };
 
+/** A block wraps a stmts */
 typedef struct
 {
   /// Starting line number:
@@ -326,10 +327,14 @@ typedef struct
   list_array   extra_values;
 } mcsh_parameters;
 
-/** sg : IN , L : IN , P : OUT
-    Assigns functions arguments in L to signature sg,
-    resulting in parameters P
- */
+/**
+   sg : IN
+   L  : IN  : List of mcsh_arg*
+   P  : OUT
+
+   Assigns arguments in L to signature sg,
+   resulting in parameters P
+*/
 bool mcsh_parameterize(mcsh_signature* sg, list_array* L,
                        mcsh_parameters* P, mcsh_status* status);
 
@@ -423,10 +428,15 @@ typedef struct mcsh_vm_s    mcsh_vm;
 typedef struct mcsh_stack_s mcsh_stack;
 typedef struct mcsh_data_s  mcsh_data;
 
-bool mcsh_signature_parse(mcsh_module* module,
-                          mcsh_signature* signature,
-                          mcsh_block* sgtokens,
-                          mcsh_status* status);
+bool mcsh_signature_parse_block(mcsh_module* module,
+                                mcsh_signature* signature,
+                                mcsh_block* sgtokens,
+                                mcsh_status* status);
+
+bool mcsh_signature_parse_values(mcsh_module* module,
+                                 mcsh_signature* signature,
+                                 list_array* values,
+                                 mcsh_status* status);
 
 struct mcsh_data_s
 {
@@ -765,6 +775,7 @@ mcsh_value* mcsh_value_new_link(mcsh_value* value);
 mcsh_value* mcsh_value_new_int(int64_t i);
 mcsh_value* mcsh_value_new_float(double f);
 mcsh_value* mcsh_value_new_string(mcsh_vm* vm, const char* s);
+mcsh_value* mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...);
 mcsh_value* mcsh_value_new_string_null(void);
 mcsh_value* mcsh_value_new_list(mcsh_vm* vm);
 mcsh_value* mcsh_value_new_list_sized(mcsh_vm* vm, size_t size);

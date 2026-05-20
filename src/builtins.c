@@ -790,6 +790,8 @@ link_to_public(mcsh_module* module,
   strmap_add(&module->vm->stack.current->vars, name, value);
 }
 
+void mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L);
+
 static bool
 builtin_signature(mcsh_bb* bb)
 {
@@ -799,28 +801,43 @@ builtin_signature(mcsh_bb* bb)
       bb->args->size, bb->module->vm->argc);
   mcsh_module* module = bb->module;
   mcsh_vm*     vm     = module->vm;
-  for (size_t i = 1; i < bb->args->size; i++)
+
+  /** List of mcsh_value* */
+  list_array args;
+  list_array_init(&args, list_array_size(bb->args) - 1);
+  list_array_last(&args, bb->args, 1);
+
+  mcsh_signature sg;
+  mcsh_signature_parse_values(module, &sg, &args, bb->status);
+
+  /** List of mcsh_arg* */
+  list_array A;
+  mcsh_strings_to_args(vm, vm->argv, &A);
+
+  mcsh_parameters P;
+  mcsh_parameterize(&sg, &A, &P, bb->status);
+  PROPAGATE(bb->status);
+
+  for (size_t i = 1; i < P.count; i++)
   {
-    mcsh_value* name = bb->args->data[i];
-    mcsh_resolve(name);
-    LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "assign to %s", name->string);
-    if (i >= vm->argc)
-      RAISE(bb->status, NULL, 0, "mcsh.exception.index_error",
-            "signature: could not assign to %s, "
-            "too few arguments (%i)", name->string, vm->argc);
-    mcsh_value* global = mcsh_value_new_string(vm, vm->argv[i]);
+    char* name = P.names[i]; // bb->args->data[i];
+    LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "signature: name '%s'", name);
+    mcsh_value* global = P.values[i];
+      // mcsh_value_new(vm, vm->argv[i]);
     mcsh_value* old;
-    if (table_set(&module->vm->globals, name->string, global,
+    if (table_set(&module->vm->globals, name, global,
                   (void*) &old))
     {} // TODO: clean up old value
     else
     {
       LOG(MCSH_LOG_BUILTIN, MCSH_INFO,
-          "signature: set new global: '%s'", name->string);
+          "signature: set new global: '%s'", name);
     }
-    link_to_global(module, name->string, global);
+    link_to_global(module, name, global);
   }
   maybe_assign(bb->output, &mcsh_null);
+  list_array_finalize(&args);
+  list_array_finalize(&A);
   return true;
 }
 

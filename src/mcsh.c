@@ -1212,6 +1212,22 @@ mcsh_value_new_string(mcsh_vm* vm, const char* s)
 }
 
 mcsh_value*
+mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...)
+{
+  mcsh_value* value = malloc_checked(sizeof(mcsh_value));
+  char* t;
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vasprintf(&t, fmt, ap);
+  valgrind_assert(n >= 0);
+  mcsh_log(&vm->logger, MCSH_LOG_DATA, MCSH_TRACE,
+           "new stringv: %p \"%s\"", value, t);
+  va_end(ap);
+  mcsh_value_init_string(value, t);
+  return value;
+}
+
+mcsh_value*
 mcsh_value_new_string_null()
 {
   mcsh_value* result = malloc(sizeof(mcsh_value));
@@ -1519,9 +1535,9 @@ mcsh_function_new(mcsh_module* module,
                             status);
   */
 
-  mcsh_signature_parse(module, &result->signature, sgtokens, status);
+  mcsh_signature_parse_block(module, &result->signature, sgtokens,
+                             status);
   mcsh_signature_print(&result->signature);
-
 
   result->block = code;
   return result;
@@ -1610,16 +1626,16 @@ slot_init(mcsh_slot* slot,
 }
 
 bool
-sg_parse_item(mcsh_module* module,
-              mcsh_signature* signature,
-              size_t i, mcsh_thing* thing,
-              mcsh_status* status);
+sg_parse_thing(mcsh_module* module,
+               mcsh_signature* signature,
+               size_t i, mcsh_thing* thing,
+               mcsh_status* status);
 
 bool
-mcsh_signature_parse(mcsh_module* module,
-                     mcsh_signature* signature,
-                     mcsh_block* sgtokens,
-                     mcsh_status* status)
+mcsh_signature_parse_block(mcsh_module* module,
+                           mcsh_signature* signature,
+                           mcsh_block* sgtokens,
+                           mcsh_status* status)
 {
   if (sgtokens->stmts.stmts.size == 0)
   {
@@ -1642,7 +1658,7 @@ mcsh_signature_parse(mcsh_module* module,
     // mcsh_value* value;
     // mcsh_status status;
 
-    bool rc = sg_parse_item(module, signature, i, thing, status);
+    bool rc = sg_parse_thing(module, signature, i, thing, status);
     CHECK0(rc);
 
     /*
@@ -1662,14 +1678,65 @@ mcsh_signature_parse(mcsh_module* module,
 }
 
 bool
-sg_parse_item(mcsh_module* module,
-              mcsh_signature* signature,
-              size_t i, mcsh_thing* thing,
-              mcsh_status* status)
+sg_parse_string(mcsh_module* module,
+                mcsh_signature* signature,
+                size_t i, const char* text,
+                mcsh_status* status);
+
+bool
+mcsh_signature_parse_values(mcsh_module* module,
+                            mcsh_signature* signature,
+                            list_array* values,
+                            mcsh_status* status)
 {
-  // Name-Type-Dflt name[:type[:dflt]]
-  //                type may be the empty string
-  char* t = strdupa(thing->data.token->text);
+  mcsh_logger* logger = &module->vm->logger;
+
+  size_t N = list_array_size(values);
+
+  if (N == 0)
+  {
+    signature->count = 0;
+    signature->extras = false;
+    signature->slots = NULL;
+    return true;
+  }
+
+  char b[1024];
+  signature->count = N;
+  /// Are extra arguments allowed (...) ?
+  signature->extras = false;
+  signature->slots = malloc_checked(N * sizeof(mcsh_slot));
+  for (size_t i = 0; i < N; i++)
+  {
+    mcsh_value* value = values->data[i];
+    mcsh_to_string(logger, b, 1024, value);
+
+    bool rc = sg_parse_string(module, signature, i, b, status);
+    CHECK0(rc);
+  }
+
+  printf("signature_parse_values(): %zu\n", N);
+  return true;
+}
+
+bool
+sg_parse_thing(mcsh_module* module,
+               mcsh_signature* signature,
+               size_t i, mcsh_thing* thing,
+               mcsh_status* status)
+{
+  char* text = thing->data.token->text;
+  bool rc = sg_parse_string(module, signature, i, text, status);
+  return rc;
+}
+
+bool
+sg_parse_string(mcsh_module* module,
+                mcsh_signature* signature,
+                size_t i, const char* text,
+                mcsh_status* status)
+{
+  char* t = strdupa(text);
   mcsh_value* dflt = NULL;
   mcsh_value_type type = MCSH_VALUE_ANY;
   char* c1 = strchr(t, ':');
@@ -2772,6 +2839,7 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
                   mcsh_parameters* P, mcsh_status* status)
 /**
    A: list of mcsh_arg*
+   RAISEs exceptions
  */
 {
   show("parameterize A=%zi...", A->size);
@@ -2929,6 +2997,62 @@ set_defaults(mcsh_signature* sg, mcsh_parameters* P,
     }
   }
   return true;
+}
+
+static inline size_t
+ptrs_length(void** P)
+{
+  size_t result = 0;
+  while (true)
+  {
+    if (P[result] == NULL) break;
+  }
+  return result;
+}
+
+static inline mcsh_value*
+mcsh_value_new_from_int(mcsh_vm* vm, int64_t i)
+{
+  (void) vm;
+  return mcsh_value_new_int(i);
+}
+
+static inline mcsh_value*
+mcsh_value_new_from_float(mcsh_vm* vm, double f)
+{
+  (void) vm;
+  return mcsh_value_new_float(f);
+}
+
+static inline mcsh_value*
+mcsh_value_new_from_string(mcsh_vm* vm, const char* s)
+{
+  return mcsh_value_new_string(vm, s);
+}
+
+#define mcsh_value_new(vm, v) _Generic((v),    \
+    int:         mcsh_value_new_from_int,      \
+    long:        mcsh_value_new_from_int,      \
+    long long:   mcsh_value_new_from_int,      \
+    float:       mcsh_value_new_from_float,    \
+    double:      mcsh_value_new_from_float,    \
+    char*:       mcsh_value_new_string,        \
+    const char*: mcsh_value_new_string         \
+  )((vm), (v))
+
+void
+mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L)
+{
+  size_t N = ptrs_length((void**) A);
+  list_array_init(L, N);
+  for (size_t i = 0; i < N; i++)
+  {
+    mcsh_arg* arg = malloc(sizeof(*arg));
+    arg->name  = mcsh_value_new_stringv(vm, "%zi", i);
+    char* t = A[i];
+    arg->value = mcsh_value_new(vm, t);
+    list_array_add(L, arg);
+  }
 }
 
 bool
@@ -3180,8 +3304,14 @@ mcsh_node_print(mcsh_node* node, int indent)
       printf("SUBFUN\n");
       mcsh_node_print(node->children.data[0], indent+2);
       break;
+    case MCSH_NODE_TYPE_TAG:
+      printf("TAG\n");
+      mcsh_node_print(node->children.data[0], indent+2);
+      mcsh_node_print(node->children.data[1], indent+2);
+      break;
     default:
-      valgrind_fail_msg("UNKNOWN: %i", node->type);
+      valgrind_fail_msg("mcsh_node_print(): "
+                        "node type unknown: %i", node->type);
   }
 }
 
