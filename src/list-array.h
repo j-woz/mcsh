@@ -57,6 +57,14 @@ list_array_get(list_array* L, size_t i)
 }
 
 static inline void
+list_array_last(list_array* source, list_array* target, size_t start)
+{
+  int N = list_array_size(source);
+  for (size_t i = start; i < N; i++)
+    list_array_add(target, list_array_get(source, i));
+}
+
+static inline void
 list_array_reset(list_array* L)
 {
   L->size = 0;
