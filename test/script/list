@@ -1,0 +1,15 @@
+#!/bin/zsh
+set -eu
+
+THIS=${0:A:h}
+cd $THIS
+
+for f in *(.)
+do
+  if [[ ${f[1]} != <-> ]] continue
+  print ${f:t:r}
+done | \
+  sort -u | \
+  nl --number-separator="~" --number-width=3 | \
+  column | \
+  tr "~" " "
