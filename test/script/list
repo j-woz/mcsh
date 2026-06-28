@@ -1,6 +1,9 @@
 #!/bin/zsh
 set -eu
 
+# LIST
+# Print list of tests
+
 THIS=${0:A:h}
 cd $THIS
 
