@@ -432,6 +432,7 @@ builtin_as_int(mcsh_bb* bb)
 
 static bool builtin_string_encode(mcsh_bb* bb);
 static bool builtin_string_decode(mcsh_bb* bb);
+static bool builtin_string_equal(mcsh_bb* bb);
 
 static bool
 builtin_string(mcsh_bb* bb)
@@ -456,6 +457,10 @@ builtin_string(mcsh_bb* bb)
   else if (strcmp(subcommand->string, "decode") == 0)
   {
     rc = builtin_string_decode(bb);
+  }
+  else if (strcmp(subcommand->string, "=") == 0)
+  {
+    rc = builtin_string_equal(bb);
   }
   else
   {
@@ -505,6 +510,31 @@ builtin_string_decode(mcsh_bb* bb)
   t[0] = (char) value->integer;
   t[1] = '\0';
   mcsh_value* result = mcsh_value_new_string(bb->module->vm, t);
+  maybe_assign(bb->output, result);
+
+  return true;
+}
+
+static bool
+builtin_string_equal(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_GE(3);
+
+  bool equal = true;
+  mcsh_value* first = bb->args->data[2];
+  EXCEPTION_SUBARG_TYPE("=", first, MCSH_VALUE_STRING, 2);
+  for (int i = 3; i < (int) bb->args->size; i++)
+  {
+    mcsh_value* value = bb->args->data[i];
+    EXCEPTION_SUBARG_TYPE("=", value, MCSH_VALUE_STRING, i);
+    if (strcmp(first->string, value->string) != 0)
+    {
+      equal = false;
+      break;
+    }
+  }
+
+  mcsh_value* result = mcsh_value_new_int(equal ? 1 : 0);
   maybe_assign(bb->output, result);
 
   return true;
