@@ -1,5 +1,5 @@
 
-# TEST :FAIL
+# TEST:FAIL
 
 function f { x:int } {
   print f_result x $x
@@ -8,4 +8,4 @@ function f { x:int } {
  #f 42
 
 # Should trigger error:
-f s
+f x=s

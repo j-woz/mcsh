@@ -467,6 +467,10 @@ struct mcsh_vm_s
   struct list_i jobs;
   mcsh_logger logger;
   int exit_code_last;
+
+  // Settings:
+  /** Allow execution: default true */
+  bool execute;
 };
 
 struct mcsh_module_s

@@ -177,7 +177,7 @@ mcsh_parse_args(unsigned int argc, char* argv[],
   {
     /* printf("argc:  %u\n", argc); */
     /* printf("index: %u\n", index); */
-    cmd->argv = calloc(cmd->argc, sizeof(char*));
+    cmd->argv = calloc(cmd->argc + 1, sizeof(char*));
     char* script = argv[index];
     cmd->argv[0] = script;
     FILE* fp = fopen(script, "r");
@@ -245,6 +245,7 @@ mcsh_vm_init(mcsh_vm* vm)
   mcsh_data_init(vm);
   list_i_init(&vm->jobs);
   vm->exit_code_last = 0;
+  vm->execute = true;
 }
 
 void
@@ -2825,7 +2826,7 @@ static inline bool set_positional_at(mcsh_signature* sg,
                                      mcsh_status* status);
 
 static inline bool set_named(mcsh_signature* sg, mcsh_arg* arg,
-                             mcsh_parameters* P);
+                             mcsh_parameters* P, mcsh_status* status);
 
 static inline bool set_defaults(mcsh_signature* sg,
                                 mcsh_parameters* P,
@@ -2833,6 +2834,19 @@ static inline bool set_defaults(mcsh_signature* sg,
 
 static inline void parameters_init(mcsh_parameters* P,
                                    mcsh_signature* sg);
+
+static inline bool
+arg_name_is_positional(mcsh_value* name)
+/** True if the arg name is a non-negative integer index (e.g. script
+    args named "0", "1", ...), which we treat as positional. */
+{
+  if (name->type != MCSH_VALUE_STRING) return false;
+  const char* s = name->string;
+  if (s[0] == '\0') return false;
+  for (const char* p = s; *p != '\0'; p++)
+    if (*p < '0' || *p > '9') return false;
+  return true;
+}
 
 bool
 mcsh_parameterize(mcsh_signature* sg, list_array* A,
@@ -2858,10 +2872,12 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
       show("got: NULL");
     else
       show("got: '%s'", arg->name->string);
-    if (arg->name == NULL)
+    // A numeric name (e.g. script args named "0", "1", ...) is treated
+    // as positional; only a non-numeric name selects a slot by name.
+    if (arg->name == NULL || arg_name_is_positional(arg->name))
       set_positional_next(sg, arg->value, P, status);
     else
-      set_named(sg, arg, P);
+      set_named(sg, arg, P, status);
     // TODO: Handle failed type checks:
     RAISE_IF(status->code != MCSH_OK, status, NULL, 0,
              "mcsh.invalid_arguments", "bad argument: %zi", i+1);
@@ -2946,7 +2962,7 @@ set_positional_at(mcsh_signature* sg, mcsh_value* value,
 
 static inline bool
 set_named(mcsh_signature* sg, mcsh_arg* arg,
-          mcsh_parameters* P)
+          mcsh_parameters* P, mcsh_status* status)
 {
   buffer name;
   buffer_init(&name, 64);
@@ -2957,17 +2973,23 @@ set_named(mcsh_signature* sg, mcsh_arg* arg,
     if (strcmp(sg->slots[j].name, name.data) == 0)
     {
       if (P->values[j] != NULL)
-        valgrind_fail();
-      P->count++;
-      P->names[j] = strdup_checked(sg->slots[j].name);
-      P->values[j] = arg->value;
-      mcsh_value_grab(NULL, arg->value);
+      {
+        mcsh_raise(status, NULL, 0, "mcsh.invalid_arguments",
+                   "argument given more than once: '%s'",
+                   name.data);
+        buffer_finalize(&name);
+        return true;
+      }
+      // Assign by slot index; this type-checks the value:
+      set_positional_at(sg, arg->value, P, j, status);
       found = true;
       break;
     }
   }
 
-  if (!found) valgrind_fail();
+  if (!found)
+    mcsh_raise(status, NULL, 0, "mcsh.invalid_arguments",
+               "no such argument: '%s'", name.data);
 
   buffer_finalize(&name);
   return true;
@@ -3006,6 +3028,7 @@ ptrs_length(void** P)
   while (true)
   {
     if (P[result] == NULL) break;
+    result++;
   }
   return result;
 }
@@ -3048,6 +3071,11 @@ mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L)
   for (size_t i = 0; i < N; i++)
   {
     mcsh_arg* arg = malloc(sizeof(*arg));
+    // NOTE: This numeric name makes the arg "named" (the index as a
+    // string), so mcsh_parameterize() routes it to set_named() and tries
+    // to match a slot called "0", "1", ... rather than filling slots
+    // positionally. Keeping the numeric name for now (may be useful
+    // later), but parameterization must handle it as positional.
     arg->name  = mcsh_value_new_stringv(vm, "%zi", i);
     char* t = A[i];
     arg->value = mcsh_value_new(vm, t);
@@ -3106,12 +3134,26 @@ set_params(list_array* A, mcsh_value* f, mcsh_entry* entry,
   // List of mcsh_arg:
   list_array L;
   list_array_init(&L, A->size - 1);
-  // List A includes the function name: skip it:
+  // List A includes the function name at index 0: skip it.
   for (size_t j = 1; j < A->size; j++)
   {
+    mcsh_value* v = list_array_get(A, j);
     mcsh_arg* arg = malloc_checked(sizeof(*arg));
-    arg->name = NULL;
-    arg->value = list_array_get(A, j);
+    // A "=" marker token (emitted by pair_to_stmt() for a name=value
+    // tag) introduces a named argument: the next two values are the
+    // parameter name and its value.
+    if (v->type == MCSH_VALUE_STRING && strcmp(v->string, "=") == 0
+        && j + 2 < A->size)
+    {
+      arg->name  = list_array_get(A, j + 1);
+      arg->value = list_array_get(A, j + 2);
+      j += 2;
+    }
+    else
+    {
+      arg->name  = NULL;
+      arg->value = v;
+    }
     list_array_add(&L, arg);
   }
 

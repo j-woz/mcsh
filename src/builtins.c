@@ -805,20 +805,23 @@ builtin_signature(mcsh_bb* bb)
   /** List of mcsh_value* */
   list_array args;
   list_array_init(&args, list_array_size(bb->args) - 1);
-  list_array_last(&args, bb->args, 1);
+  // Copy bb->args[1..] (the signature tokens, skipping "signature")
+  // into args.  Signature is list_array_last(source, target, start).
+  list_array_last(bb->args, &args, 1);
 
   mcsh_signature sg;
   mcsh_signature_parse_values(module, &sg, &args, bb->status);
 
-  /** List of mcsh_arg* */
+  /** List of mcsh_arg*.  vm->argv[0] is the script name; the script
+      args that feed the signature start at vm->argv[1]. */
   list_array A;
-  mcsh_strings_to_args(vm, vm->argv, &A);
+  mcsh_strings_to_args(vm, vm->argv + 1, &A);
 
   mcsh_parameters P;
   mcsh_parameterize(&sg, &A, &P, bb->status);
   PROPAGATE(bb->status);
 
-  for (size_t i = 1; i < P.count; i++)
+  for (size_t i = 0; i < P.count; i++)
   {
     char* name = P.names[i]; // bb->args->data[i];
     LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "signature: name '%s'", name);
