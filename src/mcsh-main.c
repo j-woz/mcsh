@@ -18,6 +18,8 @@
 #include "mcsh.h"
 #include "mcsh-iface.h"
 
+static bool vm_settings(mcsh_vm* vm, bool* result);
+
 static bool mcsh_start(mcsh_cmd_line* cmd, mcsh_vm* vm,
                        mcsh_value** value, mcsh_status* status);
 
@@ -53,16 +55,22 @@ main(int argc, char* argv[])
 
   mcsh_vm vm;
   mcsh_vm_init_cmd(&vm, &cmd);
+  vm_settings(&vm, &rc);
+  if (!rc)
+  {
+    goto final;
+  }
 
   mcsh_value* value = NULL;
   mcsh_status status;
   mcsh_status_init(&status);
 
   // Execute!
-  bool result;
-  result = mcsh_start(&cmd, &vm, &value, &status);
-  result = report_value(result, value);
-  mcsh_final_status(result, &status, &exit_status);
+  rc = mcsh_start(&cmd, &vm, &value, &status);
+  rc = report_value(rc, value);
+
+  final:
+  mcsh_final_status(rc, &status, &exit_status);
 
   mcsh_vm_stop(&vm);
   mcsh_cmd_line_finalize(&cmd);
@@ -74,6 +82,21 @@ main(int argc, char* argv[])
 
   mcsh_finalize();
   return exit_status;
+}
+
+static bool
+vm_settings(mcsh_vm* vm, bool* result)
+{
+  bool rc = getenv_boolean("MCSH_EXECUTE", true, &vm->execute);
+  if (!rc)
+  {
+    printf("mcsh: bad environment value: MCSH_EXECUTE='%s'",
+           getenv("MCSH_EXECUTE"));
+    *result = false;
+    return true;
+  }
+  *result = true;
+  return true;
 }
 
 bool mcsh_start_interactive(mcsh_module* module,
