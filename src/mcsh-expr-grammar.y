@@ -57,9 +57,13 @@
 %token <sval> MOD
 %token <sval> QM
 %token <sval> COLON
+%token <sval> AND
+%token <sval> OR
 
 %type <node> program lines line expr ;
 
+%left OR
+%left AND
 %left EQ NE LT GT LE GE
 %left PLUS MINUS
 %left MULT DIV IDIV MOD
@@ -164,6 +168,20 @@ expr:
                 {
                   printf("found: GE: %s\n", $2);
                   $$ = mcsh_node_op(MCSH_OP_GE, $1, $3,
+                                    mcsh_expr_line);
+                }
+        |
+                expr AND expr
+                {
+                  // printf("found: AND: %s\n", $2);
+                  $$ = mcsh_node_op(MCSH_OP_AND, $1, $3,
+                                    mcsh_expr_line);
+                }
+        |
+                expr OR expr
+                {
+                  // printf("found: OR: %s\n", $2);
+                  $$ = mcsh_node_op(MCSH_OP_OR, $1, $3,
                                     mcsh_expr_line);
                 }
         |

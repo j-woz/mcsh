@@ -36,7 +36,10 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
  }
 
 
-\n  { printf("NL\n"); mcsh_script_line++; return NL; }
+\n  {
+    mcsh_script_line++;
+    return NL;
+ }
 ";" { return SEMICOLON; }
 
 "{"  { return LBRACE; }
@@ -54,7 +57,7 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 
 "=" { return EQ; }
 
-[\[\]_:.,$#@!?+\-~*/%<>a-zA-Z0-9()]+      {
+[\[\]_:.,$#@!?+\-~*/%<>&|a-zA-Z0-9()]+      {
   mcsh_log(mcsh.parse_state.logger, MCSH_LOG_PARSE, MCSH_INFO,
            "lexer: STRING: '%s'", mcsh_script_text);
   mcsh_script_lval.sval = strdup(mcsh_script_text);

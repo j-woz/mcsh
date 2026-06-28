@@ -177,6 +177,8 @@ typedef enum
   MCSH_OP_GT       = 103,
   MCSH_OP_LE       = 104,
   MCSH_OP_GE       = 105,
+  MCSH_OP_AND      = 106,
+  MCSH_OP_OR       = 107,
   MCSH_OP_TERN     = 200
 } mcsh_operator;
 
@@ -220,6 +222,12 @@ op_to_string(char* s, mcsh_operator op)
       break;
     case MCSH_OP_GE:
       strcpy(s, ">=");
+      break;
+    case MCSH_OP_AND:
+      strcpy(s, "&&");
+      break;
+    case MCSH_OP_OR:
+      strcpy(s, "||");
       break;
     case MCSH_OP_NEG:
       strcpy(s, "-");

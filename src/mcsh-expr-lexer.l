@@ -43,6 +43,9 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 "<=" { return LE; }
 ">=" { return GE; }
 
+"&&" { return AND; }
+"||" { return OR; }
+
 "?" { return QM; }
 ":" { return COLON; }
 

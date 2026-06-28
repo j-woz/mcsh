@@ -3720,6 +3720,8 @@ is_math_op(mcsh_operator op)
     op == MCSH_OP_GT    ||
     op == MCSH_OP_LE    ||
     op == MCSH_OP_GE    ||
+    op == MCSH_OP_AND   ||
+    op == MCSH_OP_OR    ||
     op == MCSH_OP_TERN  ||
     op == MCSH_OP_NEG;
 }
@@ -3840,6 +3842,12 @@ eval_binary_raw(mcsh_operator op,
       break;
     case MCSH_OP_GE:
       result = int_left >= int_right;
+      break;
+    case MCSH_OP_AND:
+      result = int_left && int_right;
+      break;
+    case MCSH_OP_OR:
+      result = int_left || int_right;
       break;
     default:
       valgrind_fail_msg("bad op: %i\n", op);
