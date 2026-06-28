@@ -2547,8 +2547,7 @@ mcsh_do_loop(mcsh_module* module, list_array* args,
       {
         printf("loop: caught continue:\n");
         status->code = MCSH_OK;
-        loop_break = true;
-        break;
+        continue;
       }
       case MCSH_EXCEPTION:
       {
