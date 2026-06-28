@@ -18,6 +18,9 @@
 
   extern int mcsh_script_line;
 
+  // For the LOG() macro used in grammar actions:
+  #define logger (mcsh.parse_state.logger)
+
   void yyerror(const char *s);
 %}
 
@@ -54,32 +57,32 @@ program:
 
 stmts:
                 stmt
-                { printf("bison: single stmt\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: single stmt");
                   $$ = mcsh_node_stmt(NULL, $1, mcsh_script_line); }
         |
                 stmts NL stmt
-                { printf("bison: node stmt NL\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: node stmt NL");
                   $$ = mcsh_node_stmt($1, $3, mcsh_script_line); }
         |
                 stmts SEMICOLON stmt
-                { printf("bison: node stmt SC\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: node stmt SC");
                   $$ = mcsh_node_stmt($1, $3, mcsh_script_line); }
                 ;
 
 stmt:
                 %empty
-                { printf("bison: empty stmt\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: empty stmt");
                   $$ = NULL; }
         |
                 term
                 {
-                  printf("bison: stmt-1-term\n");
+                  LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: stmt-1-term");
                   $$ = mcsh_node_term(NULL, $1, mcsh_script_line);
                 }
         |
                 stmt WS term
                 {
-                  printf("bison: stmt-WS-term\n");
+                  LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: stmt-WS-term");
                   $$ = mcsh_node_term($1 , $3, mcsh_script_line);
                 }
         |
@@ -91,22 +94,22 @@ stmt:
 
 term:
                 STRING
-                { // printf("bison: string: '%s' @ %i\n", $1,
-                  //        mcsh_script_line);
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: string: '%s' @ %i",
+                      $1, mcsh_script_line);
                   $$ = mcsh_script_token($1, mcsh_script_line);
                   free($1); }
         |
                 LBRACE stmts RBRACE
-                { // printf("bison: block\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: block");
                   $$ = mcsh_node_block($2, mcsh_script_line); }
         |
                 SUBCMD stmts RPARENS
-                { // printf("bison: subst\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: subst");
                   $$ = mcsh_node_subcmd($2, mcsh_script_line);
                 }
         |
                 FUNCTN stmts RPARENS
-                { // printf("bison: subst\n");
+                { LOG(MCSH_LOG_PARSE, MCSH_TRACE, "bison: subst");
                   $$ = mcsh_node_subfun($2, mcsh_script_line);
                 }
         |
@@ -127,6 +130,7 @@ term:
 void
 yyerror(const char* msg)
 {
-  printf("MCSH PARSE ERROR: line %i: %s\n", mcsh_script_line, msg);
+  LOG(MCSH_LOG_PARSE, MCSH_FATAL, "MCSH PARSE ERROR: line %i: %s",
+      mcsh_script_line, msg);
   exit(EXIT_FAILURE);
 }
