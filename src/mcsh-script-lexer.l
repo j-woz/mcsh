@@ -32,8 +32,8 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 [ \t]+/"))" { /* consumes whitespace at end of stmt before )) */ }
 
 [ \t]+ {
-  printf("WS\n");
-  return WS; }
+  return WS;
+ }
 
 
 \n  { printf("NL\n"); mcsh_script_line++; return NL; }
