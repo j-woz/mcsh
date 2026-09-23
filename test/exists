@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Check for existence of all given files
+
+for f in $*
+do
+  if ! [ -e $f ]
+  then
+    echo "does not exist: $f"
+    exit 1
+  fi
+done
