@@ -1087,7 +1087,7 @@ builtin_os_rename(mcsh_bb* bb)
   mcsh_value* b = bb->args->data[3];
   TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 2,
              "argument must be a string filename");
-  TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 3,
+  TYPE_CHECK(b, MCSH_VALUE_STRING, bb->status, "mv", 3,
              "argument must be a string filename");
 
   char* a_name = a->string;
