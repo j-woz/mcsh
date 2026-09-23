@@ -2546,8 +2546,11 @@ mcsh_do_loop(mcsh_module* module, list_array* args,
       case MCSH_CONTINUE:
       {
         printf("loop: caught continue:\n");
+        // The remaining body stmts were already skipped by
+        // mcsh_stmts_execute(): fall through to the end condition,
+        // which must still be evaluated.
         status->code = MCSH_OK;
-        continue;
+        break;
       }
       case MCSH_EXCEPTION:
       {
@@ -2877,9 +2880,8 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
       set_positional_next(sg, arg->value, P, status);
     else
       set_named(sg, arg, P, status);
-    // TODO: Handle failed type checks:
-    RAISE_IF(status->code != MCSH_OK, status, NULL, 0,
-             "mcsh.invalid_arguments", "bad argument: %zi", i+1);
+    // Propagate the specific exception (e.g. invalid type) raised above:
+    PROPAGATE(status);
   }
 
   set_defaults(sg, P, status);
