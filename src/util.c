@@ -165,13 +165,25 @@ parent(char* filename)
 }
 
 bool
-is_integer(const char* s, size_t* output)
+is_integer(const char* s, int64_t* output)
 {
   errno = 0;
   char* t;
-  size_t result = strtol(s, &t, 10);
+  int64_t result = strtol(s, &t, 10);
   if (output != NULL) *output = result;
-  if (s == t) return false;
+  if (s == t || *t != '\0') return false;
+  valgrind_assert(errno == 0);
+  return true;
+}
+
+bool
+is_float(const char* s, double* output)
+{
+  errno = 0;
+  char* t;
+  double result = strtod(s, &t);
+  if (output != NULL) *output = result;
+  if (s == t || *t != '\0') return false;
   valgrind_assert(errno == 0);
   return true;
 }

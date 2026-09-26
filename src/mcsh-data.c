@@ -383,7 +383,8 @@ to_value_n(context* ctx, const char* token, size_t n,
            mcsh_value** output)
 {
   char* t = alloca(n+1);
-  strncpy(t, token, n+1);
+  strncpy(t, token, n);
+  t[n] = '\0';
   return to_value(ctx, t, output);
 }
 
@@ -399,7 +400,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     variable_parse(ctx, &v, &token[1]);
     LOG(MCSH_LOG_DATA, MCSH_DEBUG,
         "to_value(): name:  '%s' type=%i", v.name, v.type);
-    size_t index;
+    int64_t index;
     if (is_integer(v.name, &index))
     {
       arg_index(index, ctx, &value);
@@ -468,10 +469,12 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   else
   {
     // Handle literals!
-    // TODO: Handle float literals
-    size_t integer;
+    int64_t integer;
+    double number;
     if (!ctx->quoted && is_integer(token, &integer)) {
       value = mcsh_value_new_int(integer);
+    } else if (!ctx->quoted && is_float(token, &number)) {
+      value = mcsh_value_new_float(number);
     } else {
       value = mcsh_value_new_string(ctx->entry->module->vm, token);
     }

@@ -53,6 +53,8 @@ https://www.reddit.com/r/C_Programming/comments/ozew2u/better_way_to_get_a_rando
 
 Tests 5200 5201 5601 6116 6120
 
+Quoted numbers are not strings!  2026-09-25
+
 = CORE =
 
 See also test/.../About.txt
@@ -93,8 +95,8 @@ Expand %j to pid for job j NEW 2024-04-21
 Wait for all jobs NEW 2024-04-21
 Job list as actual list NEW 2024-04-21
 Auto-run shell commands like Tcl NEW 2024-04-21
-Classes NEW: 2024-12-06: Postponed 2024-04-21
 Extension functions
+Classes NEW: 2024-12-06: Postponed 2024-04-21
 MCHP <?if expr ?>
 IPC for forked shells like Python's multiprocessing.Queue
 switch statement NEW 2024-05-07

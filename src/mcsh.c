@@ -3658,13 +3658,27 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
     return true;
   }
   mcsh_value* value = NULL;
-  size_t i;
   switch (expr->type)
   {
     case MCSH_EXPR_TYPE_TOKEN:
       // printf("eval: token\n");
       if (output != NULL)
-        value = mcsh_value_new_string(vm, expr->children.data[0]);
+      {
+        // TODO: circle back on quoted numeric literals (e.g. "3") --
+        // quoted-ness from the expr lexer (mcsh_expr_token_quoted) is not
+        // currently plumbed through to this point, so a quoted "3" is
+        // indistinguishable from a bare 3 here and will be misclassified
+        // as MCSH_VALUE_INT/FLOAT instead of staying MCSH_VALUE_STRING.
+        char* text = expr->children.data[0];
+        int64_t i;
+        double  f;
+        if (is_integer(text, &i))
+          value = mcsh_value_new_int(i);
+        else if (is_float(text, &f))
+          value = mcsh_value_new_float(f);
+        else
+          value = mcsh_value_new_string(vm, text);
+      }
       break;
     case MCSH_EXPR_TYPE_STMTS:
       // printf("eval: stmts\n");
@@ -3672,17 +3686,17 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
         value = &mcsh_null;
       else
       {
-        i = 0;
+        size_t stmt_index = 0;
         if (expr->children.size > 1)
-          for (; i < expr->children.size-1; i++)
+          for (; stmt_index < expr->children.size-1; stmt_index++)
           {
-            // printf("eval: stmts %zi\n", i);
+            // printf("eval: stmts %zi\n", stmt_index);
             fflush(stdout);
-            mcsh_expr_eval(vm, expr->children.data[i], NULL);
+            mcsh_expr_eval(vm, expr->children.data[stmt_index], NULL);
           }
         // printf("eval: stmt root\n");
         fflush(stdout);
-        mcsh_expr_eval(vm, expr->children.data[i], &value);
+        mcsh_expr_eval(vm, expr->children.data[stmt_index], &value);
       }
       break;
     case MCSH_EXPR_TYPE_OP:
@@ -3703,7 +3717,7 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
 
 static inline bool eval_binary(mcsh_vm* vm, mcsh_operator op,
                                list_array* operands,
-                               int64_t* output);
+                               mcsh_value** output);
 
 static inline bool
 is_math_op(mcsh_operator op)
@@ -3728,7 +3742,7 @@ is_math_op(mcsh_operator op)
 }
 
 static inline bool eval_ternary(mcsh_vm* vm, mcsh_operator op,
-                                list_array* operands, int64_t* output);
+                                list_array* operands, mcsh_value** output);
 
 
 static bool
@@ -3739,29 +3753,32 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
   char t[64];
   op_to_string(t, op);
   LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "eval_op: %s", t);
-  int64_t int_result;
   mcsh_value* result;
 
   if (!is_math_op(op)) valgrind_fail_msg("unknown op: '%s'\n", t);
 
   if (op == MCSH_OP_TERN)
   {
-    eval_ternary(vm, op, &expr->children, &int_result);
+    eval_ternary(vm, op, &expr->children, &result);
   }
   else if (op == MCSH_OP_NEG)
   {
     mcsh_value* value;
     mcsh_expr_eval(vm, expr->children.data[0], &value);
-    int64_t i;
-    mcsh_value_integer(value, &i);
-    int_result = -i;
+    if (value->type == MCSH_VALUE_FLOAT)
+      result = mcsh_value_new_float(-value->number);
+    else
+    {
+      int64_t i;
+      mcsh_value_integer(value, &i);
+      result = mcsh_value_new_int(-i);
+    }
   }
   else
   {
-    eval_binary(vm, op, &expr->children, &int_result);
+    eval_binary(vm, op, &expr->children, &result);
   }
 
-  result = mcsh_value_new_int(int_result);
   if (output != NULL)
     *output = result;
   // Use maybe_assign()
@@ -3773,9 +3790,41 @@ static inline bool eval_binary_raw(mcsh_operator op,
                                    int64_t int_right,
                                    int64_t* output);
 
+static inline bool eval_binary_raw_float(mcsh_operator op,
+                                         double float_left,
+                                         double float_right,
+                                         mcsh_value** output);
+
+/** Coerce a value to double without requiring an mcsh_status --
+    this calc-expression evaluation subsystem doesn't thread status
+    through (mirrors mcsh_value_integer()'s no-status convention). */
+static inline bool
+value_to_double(const mcsh_value* value, double* output)
+{
+  char* p;
+  *output = 0.0;
+  switch (value->type)
+  {
+    case MCSH_VALUE_INT:
+      *output = (double) value->integer;
+      break;
+    case MCSH_VALUE_FLOAT:
+      *output = value->number;
+      break;
+    case MCSH_VALUE_STRING:
+      errno = 0;
+      *output = strtod(value->string, &p);
+      if (value->string == p || errno != 0) return false;
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
 static inline bool
 eval_binary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
-            int64_t* output)
+            mcsh_value** output)
 {
   // char t[64];
   mcsh_value* value_left;
@@ -3786,11 +3835,28 @@ eval_binary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
   mcsh_expr_eval(vm, operands->data[1], &value_right);
   // mcsh_to_string(logger, t, 64, value_right);
 
-  int64_t int_left, int_right, int_result;
-  mcsh_value_integer(value_left,  &int_left);
-  mcsh_value_integer(value_right, &int_right);
-  eval_binary_raw(op, int_left, int_right, &int_result);
-  *output = int_result;
+  // %/ and % have no float definition: always truncate to int for them,
+  // even if an operand is float.
+  bool use_float =
+    op != MCSH_OP_IDIV && op != MCSH_OP_MOD &&
+    (value_left->type  == MCSH_VALUE_FLOAT ||
+     value_right->type == MCSH_VALUE_FLOAT);
+
+  if (use_float)
+  {
+    double float_left, float_right;
+    value_to_double(value_left,  &float_left);
+    value_to_double(value_right, &float_right);
+    eval_binary_raw_float(op, float_left, float_right, output);
+  }
+  else
+  {
+    int64_t int_left, int_right, int_result;
+    mcsh_value_integer(value_left,  &int_left);
+    mcsh_value_integer(value_right, &int_right);
+    eval_binary_raw(op, int_left, int_right, &int_result);
+    *output = mcsh_value_new_int(int_result);
+  }
 
   return true;
 }
@@ -3858,8 +3924,58 @@ eval_binary_raw(mcsh_operator op,
 }
 
 static inline bool
+eval_binary_raw_float(mcsh_operator op,
+                      double float_left, double float_right,
+                      mcsh_value** output)
+{
+  switch (op)
+  {
+    case MCSH_OP_PLUS:
+      *output = mcsh_value_new_float(float_left + float_right);
+      break;
+    case MCSH_OP_MINUS:
+      *output = mcsh_value_new_float(float_left - float_right);
+      break;
+    case MCSH_OP_MULT:
+      *output = mcsh_value_new_float(float_left * float_right);
+      break;
+    case MCSH_OP_DIV:
+      valgrind_assert_msg(float_right != 0, "mcc: ZERO DIVIDE (/)");
+      *output = mcsh_value_new_float(float_left / float_right);
+      break;
+    case MCSH_OP_EQ:
+      *output = mcsh_value_new_int(float_left == float_right);
+      break;
+    case MCSH_OP_NE:
+      *output = mcsh_value_new_int(float_left != float_right);
+      break;
+    case MCSH_OP_LT:
+      *output = mcsh_value_new_int(float_left < float_right);
+      break;
+    case MCSH_OP_GT:
+      *output = mcsh_value_new_int(float_left > float_right);
+      break;
+    case MCSH_OP_LE:
+      *output = mcsh_value_new_int(float_left <= float_right);
+      break;
+    case MCSH_OP_GE:
+      *output = mcsh_value_new_int(float_left >= float_right);
+      break;
+    case MCSH_OP_AND:
+      *output = mcsh_value_new_int(float_left && float_right);
+      break;
+    case MCSH_OP_OR:
+      *output = mcsh_value_new_int(float_left || float_right);
+      break;
+    default:
+      valgrind_fail_msg("bad float op: %i\n", op);
+  }
+  return true;
+}
+
+static inline bool
 eval_ternary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
-             int64_t* output)
+             mcsh_value** output)
 {
   valgrind_assert(op == MCSH_OP_TERN);
   mcsh_value* value_condition;
@@ -3869,15 +3985,12 @@ eval_ternary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
   mcsh_expr_eval(vm, operands->data[1], &value_left);
   mcsh_expr_eval(vm, operands->data[2], &value_right);
 
-  int64_t int_condition, int_left, int_right, int_result;
-  mcsh_value_integer(value_condition,  &int_condition);
-  mcsh_value_integer(value_left,       &int_left);
-  mcsh_value_integer(value_right,      &int_right);
+  int64_t int_condition;
+  mcsh_value_integer(value_condition, &int_condition);
 
-  // Do it!
-  int_result = int_condition ? int_left : int_right;
-
-  *output = int_result;
+  // Preserve the selected branch's own type (int/float/string) rather
+  // than forcing both branches through int64.
+  *output = int_condition ? value_left : value_right;
   return true;
 }
 
@@ -3894,7 +4007,7 @@ mcsh_value_integer(mcsh_value* value, int64_t* output)
     }
     case MCSH_VALUE_FLOAT:
     {
-      fail("value_integer(): convert from float NYI\n");
+      *output = (int64_t) value->number;
       break;
     }
     case MCSH_VALUE_STRING:
@@ -4132,12 +4245,22 @@ mcsh_strfromd(char* restrict str, size_t n, double fp)
 {
   unsigned int result;
 #ifdef HAVE_STRFROMD
-  result = strfromd(str, n, "%f", fp);
+  result = strfromd(str, n, "%.15g", fp);
 #else
   // strfromd() is not in Cygwin
-  result = snprintf(str, n, "%f", fp);
+  result = snprintf(str, n, "%.15g", fp);
 #endif
   valgrind_assert(result < n);
+  // Ensure the text is unambiguously a float on re-parse (e.g. by
+  // builtin_expr's stringify-then-reparse round trip): %g drops the
+  // decimal point for whole numbers (5.0 -> "5"), which would otherwise
+  // be misread back as an integer.
+  if (strpbrk(str, ".eEnN") == NULL)
+  {
+    valgrind_assert(result + 2 < n);
+    strcat(str, ".0");
+    result += 2;
+  }
   return result;
 }
 

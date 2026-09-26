@@ -261,7 +261,10 @@ size_t time_string(char* s);
 bool parent(char* filename);
 
 /** output may be NULL */
-bool is_integer(const char* s, size_t* output);
+bool is_integer(const char* s, int64_t* output);
+
+/** output may be NULL */
+bool is_float(const char* s, double* output);
 
 /**
    Receive a true/false setting by env var, which is
