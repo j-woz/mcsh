@@ -477,6 +477,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
       value = mcsh_value_new_float(number);
     } else {
       value = mcsh_value_new_string(ctx->entry->module->vm, token);
+      value->quoted = ctx->quoted;
     }
   }
   end:

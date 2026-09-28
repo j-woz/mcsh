@@ -3646,10 +3646,11 @@ expr_scan_exception(mcsh_status* status)
 }
 
 static bool mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr,
-                              mcsh_value** output);
+                              mcsh_value** output, mcsh_status* status);
 
 bool
-mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
+mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
+              mcsh_status* status)
 {
   // printf("mcsh_expr_eval(%p)\n", expr);
   if (expr == NULL)
@@ -3664,20 +3665,23 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
       // printf("eval: token\n");
       if (output != NULL)
       {
-        // TODO: circle back on quoted numeric literals (e.g. "3") --
-        // quoted-ness from the expr lexer (mcsh_expr_token_quoted) is not
-        // currently plumbed through to this point, so a quoted "3" is
-        // indistinguishable from a bare 3 here and will be misclassified
-        // as MCSH_VALUE_INT/FLOAT instead of staying MCSH_VALUE_STRING.
         char* text = expr->children.data[0];
-        int64_t i;
-        double  f;
-        if (is_integer(text, &i))
-          value = mcsh_value_new_int(i);
-        else if (is_float(text, &f))
-          value = mcsh_value_new_float(f);
-        else
+        if (expr->quoted)
+        {
+          // A quoted literal is always a string, regardless of content.
           value = mcsh_value_new_string(vm, text);
+        }
+        else
+        {
+          int64_t i;
+          double  f;
+          if (is_integer(text, &i))
+            value = mcsh_value_new_int(i);
+          else if (is_float(text, &f))
+            value = mcsh_value_new_float(f);
+          else
+            value = mcsh_value_new_string(vm, text);
+        }
       }
       break;
     case MCSH_EXPR_TYPE_STMTS:
@@ -3692,15 +3696,20 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
           {
             // printf("eval: stmts %zi\n", stmt_index);
             fflush(stdout);
-            mcsh_expr_eval(vm, expr->children.data[stmt_index], NULL);
+            mcsh_expr_eval(vm, expr->children.data[stmt_index], NULL,
+                          status);
+            PROPAGATE(status);
           }
         // printf("eval: stmt root\n");
         fflush(stdout);
-        mcsh_expr_eval(vm, expr->children.data[stmt_index], &value);
+        mcsh_expr_eval(vm, expr->children.data[stmt_index], &value,
+                      status);
+        PROPAGATE(status);
       }
       break;
     case MCSH_EXPR_TYPE_OP:
-      mcsh_expr_eval_op(vm, expr, &value);
+      mcsh_expr_eval_op(vm, expr, &value, status);
+      PROPAGATE(status);
       break;
   }
   if (output != NULL)
@@ -3717,7 +3726,7 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
 
 static inline bool eval_binary(mcsh_vm* vm, mcsh_operator op,
                                list_array* operands,
-                               mcsh_value** output);
+                               mcsh_value** output, mcsh_status* status);
 
 static inline bool
 is_math_op(mcsh_operator op)
@@ -3742,11 +3751,13 @@ is_math_op(mcsh_operator op)
 }
 
 static inline bool eval_ternary(mcsh_vm* vm, mcsh_operator op,
-                                list_array* operands, mcsh_value** output);
+                                list_array* operands, mcsh_value** output,
+                                mcsh_status* status);
 
 
 static bool
-mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
+mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
+                  mcsh_status* status)
 {
   mcsh_logger* logger = &vm->logger;
   mcsh_operator op = expr->op;
@@ -3759,12 +3770,18 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
 
   if (op == MCSH_OP_TERN)
   {
-    eval_ternary(vm, op, &expr->children, &result);
+    eval_ternary(vm, op, &expr->children, &result, status);
+    PROPAGATE(status);
   }
   else if (op == MCSH_OP_NEG)
   {
+    mcsh_expr* operand = expr->children.data[0];
     mcsh_value* value;
-    mcsh_expr_eval(vm, expr->children.data[0], &value);
+    mcsh_expr_eval(vm, operand, &value, status);
+    PROPAGATE(status);
+    RAISE_IF(operand->quoted, status, NULL, mcsh_expr_line,
+             "mcsh.calc.type_error",
+             "invalid operand for arithmetic: quoted string literal");
     if (value->type == MCSH_VALUE_FLOAT)
       result = mcsh_value_new_float(-value->number);
     else
@@ -3776,7 +3793,8 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output)
   }
   else
   {
-    eval_binary(vm, op, &expr->children, &result);
+    eval_binary(vm, op, &expr->children, &result, status);
+    PROPAGATE(status);
   }
 
   if (output != NULL)
@@ -3824,16 +3842,25 @@ value_to_double(const mcsh_value* value, double* output)
 
 static inline bool
 eval_binary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
-            mcsh_value** output)
+            mcsh_value** output, mcsh_status* status)
 {
   // char t[64];
+  mcsh_expr* expr_left  = operands->data[0];
+  mcsh_expr* expr_right = operands->data[1];
   mcsh_value* value_left;
   mcsh_value* value_right;
-  mcsh_expr_eval(vm, operands->data[0], &value_left);
+  mcsh_expr_eval(vm, expr_left, &value_left, status);
+  PROPAGATE(status);
   // mcsh_to_string(&vm->logger, t, 64, value_left);
 
-  mcsh_expr_eval(vm, operands->data[1], &value_right);
+  mcsh_expr_eval(vm, expr_right, &value_right, status);
+  PROPAGATE(status);
   // mcsh_to_string(logger, t, 64, value_right);
+
+  RAISE_IF(expr_left->quoted || expr_right->quoted,
+           status, NULL, mcsh_expr_line,
+           "mcsh.calc.type_error",
+           "invalid operand for arithmetic: quoted string literal");
 
   // %/ and % have no float definition: always truncate to int for them,
   // even if an operand is float.
@@ -3975,15 +4002,18 @@ eval_binary_raw_float(mcsh_operator op,
 
 static inline bool
 eval_ternary(mcsh_vm* vm, mcsh_operator op, list_array* operands,
-             mcsh_value** output)
+             mcsh_value** output, mcsh_status* status)
 {
   valgrind_assert(op == MCSH_OP_TERN);
   mcsh_value* value_condition;
   mcsh_value* value_left;
   mcsh_value* value_right;
-  mcsh_expr_eval(vm, operands->data[0], &value_condition);
-  mcsh_expr_eval(vm, operands->data[1], &value_left);
-  mcsh_expr_eval(vm, operands->data[2], &value_right);
+  mcsh_expr_eval(vm, operands->data[0], &value_condition, status);
+  PROPAGATE(status);
+  mcsh_expr_eval(vm, operands->data[1], &value_left, status);
+  PROPAGATE(status);
+  mcsh_expr_eval(vm, operands->data[2], &value_right, status);
+  PROPAGATE(status);
 
   int64_t int_condition;
   mcsh_value_integer(value_condition, &int_condition);
@@ -4094,15 +4124,17 @@ mcsh_expr_construct(mcsh_expr_type type, size_t size)
 {
   mcsh_expr* expr = malloc_checked(sizeof(*expr));
   expr->type = type;
+  expr->quoted = false;
   list_array_init(&expr->children, size);
   return expr;
 }
 
 static inline mcsh_expr*
-mcsh_expr_construct_token(char* text)
+mcsh_expr_construct_token(char* text, bool quoted)
 {
   mcsh_expr* expr = mcsh_expr_construct(MCSH_EXPR_TYPE_TOKEN, 1);
   expr->op = MCSH_OP_IDENTITY;
+  expr->quoted = quoted;
   list_array_add(&expr->children, strdup(text));
   // printf("expr_construct_token: '%s'\n", text);
   // printf("TOKEN c: '%s'\n", (char*) expr->children.data[0]);
@@ -4150,7 +4182,8 @@ mcsh_node_to_expr(mcsh_node* node, mcsh_expr** output)
   switch (node->type)
   {
     case MCSH_NODE_TYPE_TOKEN:
-      expr = mcsh_expr_construct_token(node->children.data[0]);
+      expr = mcsh_expr_construct_token(node->children.data[0],
+                                       node->quoted);
       break;
     case MCSH_NODE_TYPE_PAIR:
       expr = mcsh_expr_construct_stmts();

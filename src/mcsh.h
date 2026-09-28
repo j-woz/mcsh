@@ -120,6 +120,11 @@ struct mcsh_value_s
   mcsh_value_type type;
   int refs;
   bool word_split;
+  /// True if this value came from a source-level quoted string literal
+  /// (e.g. "3"). Only set explicitly by to_value()'s literal branch;
+  /// defaults false for every other value (including plain
+  /// mcsh_value_new_string() calls elsewhere).
+  bool quoted;
   union
   {
     char* string;
@@ -407,6 +412,8 @@ typedef struct
   mcsh_expr_type type;
   mcsh_operator op;
   list_array children;
+  /// For TOKEN exprs: source-level quoted-string-literal marker.
+  bool quoted;
 } mcsh_expr;
 
 typedef enum
@@ -718,6 +725,7 @@ mcsh_value_init(mcsh_value* value)
   //       Short job when have clean SVN for testing
   value->refs       = 0;
   value->word_split = false;
+  value->quoted     = false;
 }
 
 static inline void
@@ -836,7 +844,8 @@ void mcsh_node_to_expr(mcsh_node* node, mcsh_expr** output);
 
 void mcsh_expr_print(mcsh_expr* expr, int indent);
 
-bool mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output);
+bool mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
+                    mcsh_status* status);
 
 void mcsh_expr_finalize(mcsh_expr* expr);
 

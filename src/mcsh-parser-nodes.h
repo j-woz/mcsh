@@ -45,6 +45,33 @@ mcsh_node_token_sized(char const* text, size_t count, int line)
 }
 
 UNUSED static mcsh_node*
+mcsh_expr_node_token(char const* text, int line)
+{
+  // Derive quoted-ness from the token text itself, same approach as
+  // mcsh_script_token() (mcsh-script-parser.c): the expr lexer's
+  // STRINGLITERAL rule includes the surrounding quotes in the matched
+  // text, so a token is quoted iff it starts and ends with '"'.
+  size_t len = strlen(text);
+  bool quoted = (len >= 2 && text[0] == '"' && text[len-1] == '"');
+  const char* p;
+  size_t count;
+  if (quoted)
+  {
+    p = &text[1];
+    count = len - 2;
+  }
+  else
+  {
+    p = text;
+    count = len;
+  }
+
+  mcsh_node* node = mcsh_node_token_sized(p, count, line);
+  node->quoted = quoted;
+  return node;
+}
+
+UNUSED static mcsh_node*
 mcsh_node_op(mcsh_operator op, mcsh_node* left, mcsh_node* right,
              int line)
 {

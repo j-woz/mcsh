@@ -676,7 +676,20 @@ builtin_expr(mcsh_bb* bb)
     const int length = 64;
     char t[length];
     mcsh_to_string(logger, t, length, value);
+    // Re-quote values that came from a source-level quoted string
+    // literal so the second (calc) parse pass below sees them as quoted
+    // string literals again -- otherwise quoted-ness (and the type
+    // checking it enables in eval_binary()) would be lost on this
+    // stringify/reparse round trip. Checking value->quoted rather than
+    // value->type == MCSH_VALUE_STRING matters: operator words like "+"
+    // are ALSO MCSH_VALUE_STRING but must NOT be quoted here, or the
+    // second-pass lexer would misread them as string literals instead of
+    // operators.
+    if (value->quoted)
+      buffer_catc(&B, '"');
     buffer_cat (&B, t);
+    if (value->quoted)
+      buffer_catc(&B, '"');
     buffer_catc(&B, ' ');
   }
   buffer_catc(&B, '\n');
@@ -687,6 +700,7 @@ builtin_expr(mcsh_bb* bb)
   mcsh_node* node;
   mcsh_expr_scan(B.data, &node, bb->status);
   // printf("scan ok.\n");
+  PROPAGATE(bb->status);
 
   mcsh_expr* expr;
   mcsh_node_to_expr(node, &expr);
@@ -694,9 +708,10 @@ builtin_expr(mcsh_bb* bb)
 
   // mcsh_expr_print(expr, 0);
 
-  bool rc = mcsh_expr_eval(bb->module->vm, expr, &result);
+  bool rc = mcsh_expr_eval(bb->module->vm, expr, &result, bb->status);
   // printf("execute\n");
   CHECK(rc, "mcsh: expr execution failed!\n");
+  PROPAGATE(bb->status);
 
   maybe_assign(bb->output, result);
   return true;

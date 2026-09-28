@@ -145,9 +145,17 @@ static bool mcc_start_interactive(mcsh_module* module,
 
     // mcsh_expr_print(expr, 0);
 
-    bool rc = mcsh_expr_eval(module->vm, expr, value);
+    bool rc = mcsh_expr_eval(module->vm, expr, value, status);
     // printf("execute\n");
     CHECK(rc, "mcsh: expr execution failed!\n");
+    if (status->code == MCSH_EXCEPTION)
+    {
+      printf("mcc: uncaught exception: line==%i %s\n",
+             status->exception->line, status->exception->text);
+      loop = false;
+      mcsh_exception_reset(status);
+      goto done;
+    }
 
     mcsh_to_string(logger, value_string, VALUE_STRING_MAX, *value);
     printf("\t ==> %s\n", value_string);
@@ -180,6 +188,12 @@ static bool mcc_start_slurp(mcsh_cmd_line* cmd,
   mcsh_node* node;
   mcsh_expr_scan(code.data, &node, status);
   printf("scan ok.\n");
+  if (status->code == MCSH_EXCEPTION)
+  {
+    printf("mcsh: uncaught exception: line==%i %s\n",
+           status->exception->line, status->exception->text);
+    return EXIT_FAILURE;
+  }
 
   mcsh_expr* expr;
   mcsh_node_to_expr(node, &expr);
@@ -188,11 +202,17 @@ static bool mcc_start_slurp(mcsh_cmd_line* cmd,
   mcsh_expr_print(expr, 0);
 
   printf("eval: expr: %p\n", expr);
-  bool result = mcsh_expr_eval(module->vm, expr, value);
+  bool result = mcsh_expr_eval(module->vm, expr, value, status);
   printf("eval'd\n");
   if (! result)
   {
     printf("mcsh: execution failed!\n");
+    return EXIT_FAILURE;
+  }
+  if (status->code == MCSH_EXCEPTION)
+  {
+    printf("mcsh: uncaught exception: line==%i %s\n",
+           status->exception->line, status->exception->text);
     return EXIT_FAILURE;
   }
 

@@ -115,7 +115,7 @@ line:
 expr:
                 TOKEN
                 {
-                  $$ = mcsh_node_token($1, mcsh_expr_line);
+                  $$ = mcsh_expr_node_token($1, mcsh_expr_line);
                 }
         |
                 LPAREN expr RPAREN
