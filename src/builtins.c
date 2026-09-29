@@ -14,6 +14,7 @@
 #include "list_i.h"
 #include "lookup.h"
 #include "table.h"
+#include "strmap.h"
 #include "strlcpyj.h"
 #include "util-string.h"
 #include "util.h"
@@ -741,6 +742,51 @@ builtin_set(mcsh_bb* bb)
   // printf("value: %p\n", value);
   maybe_assign(bb->output, value);
   // printf("out type: %i\n", (*(bb->output))->type);
+  return rc;
+}
+
+static bool
+builtin_set_if_undefined(mcsh_bb* bb)
+{
+  // := name value
+  // Set variable to value only if variable is not already defined
+  EXCEPTION_ARGC_EQ(2);
+  mcsh_logger* logger = &bb->module->vm->logger;
+  mcsh_value* target = bb->args->data[1];
+  valgrind_assert_msg(target->type == MCSH_VALUE_STRING,
+                      "type: %i", target->type);
+  char* name = target->string;
+
+  // Check if variable exists in current scope by searching the stack
+  mcsh_entry* entry = bb->module->vm->stack.current;
+  bool modules_only = false;
+
+  while (entry != NULL)
+  {
+    if (modules_only)
+      if (entry->type != MCSH_ENTRY_MODULE)
+        goto next_entry;
+
+    // Search in the current entry's variables
+    if (strmap_search_index(&entry->vars, name, NULL))
+    {
+      // Variable exists, do nothing
+      return true;
+    }
+
+    if (entry->type == MCSH_ENTRY_FRAME)
+      modules_only = true;
+
+    next_entry:
+    entry = entry->parent;
+  }
+
+  // Variable is not defined, so set it
+  mcsh_value* value = bb->args->data[2];
+  bool rc = mcsh_set_value(bb->module, name, value, bb->status);
+  // Need to grab when doing: := x $T[$k]
+  mcsh_value_grab(logger, value);
+  maybe_assign(bb->output, value);
   return rc;
 }
 
@@ -1617,6 +1663,7 @@ builtins_add()
   table_add(mcsh.builtins, "++",        builtin_incr);
   table_add(mcsh.builtins, "$",         builtin_expr);
   table_add(mcsh.builtins, "=",         builtin_set);
+  table_add(mcsh.builtins, ":=",        builtin_set_if_undefined);
   table_add(mcsh.builtins, "drop",      builtin_drop);
   table_add(mcsh.builtins, "global",    builtin_global);
   table_add(mcsh.builtins, "public",    builtin_public);
