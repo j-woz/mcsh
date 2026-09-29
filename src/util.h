@@ -266,6 +266,9 @@ bool is_integer(const char* s, int64_t* output);
 /** output may be NULL */
 bool is_float(const char* s, double* output);
 
+/** output may be NULL - checks for "true" or "false" (case-insensitive) */
+bool is_boolean(const char* s, bool* output);
+
 /**
    Receive a true/false setting by env var, which is
    false if "0", or false (case-insensitive),

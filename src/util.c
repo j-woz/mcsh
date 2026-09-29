@@ -189,6 +189,35 @@ is_float(const char* s, double* output)
 }
 
 bool
+is_boolean(const char* s, bool* output)
+{
+  size_t length = strlen(s);
+  // should not be longer than 5 characters "false"
+  const size_t max_length = 5;
+  if (length > max_length)
+    return false;
+
+  // Convert to lower case
+  char lower_s[8];
+  for (size_t i = 0; i < length; i++)
+    lower_s[i] = (char) tolower(s[i]);
+  lower_s[length] = '\0';
+
+  if (strcmp(lower_s, "true") == 0)
+  {
+    if (output != NULL) *output = true;
+    return true;
+  }
+  else if (strcmp(lower_s, "false") == 0)
+  {
+    if (output != NULL) *output = false;
+    return true;
+  }
+
+  return false;
+}
+
+bool
 getenv_boolean(const char* name, bool dflt, bool* result)
 {
   char* s = getenv(name);
@@ -210,29 +239,14 @@ getenv_boolean(const char* name, bool dflt, bool* result)
   }
 
   // Try to parse as true/false
-  size_t length = strlen(s);
-  // should not be longer than 5 characters "false"
-  const size_t max_length = 5;
-  if (length > max_length)
-    goto error;
+  bool bool_result;
+  if (is_boolean(s, &bool_result))
+  {
+    *result = bool_result;
+    return true;
+  }
 
-  // Convert to lower case
-  char lower_s[8];
-  for (size_t i = 0; i < length; i++)
-    lower_s[i] = (char) tolower(s[i]);
-  lower_s[length] = '\0';
-
-  if (strcmp(lower_s, "true") == 0)
-    *result = true;
-  else if (strcmp(lower_s, "false") == 0)
-    *result = false;
-  else
-    goto error;
-
-  // Successful return:
-  return true;
-
-  error:
+  // Error: couldn't parse
   printf("Invalid boolean environment variable value: %s=\"%s\"\n",
          name, s);
   return false;

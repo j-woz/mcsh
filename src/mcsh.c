@@ -3675,7 +3675,10 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
         {
           int64_t i;
           double  f;
-          if (is_integer(text, &i))
+          bool    b;
+          if (is_boolean(text, &b))
+            value = mcsh_value_new_int(b ? 1 : 0);
+          else if (is_integer(text, &i))
             value = mcsh_value_new_int(i);
           else if (is_float(text, &f))
             value = mcsh_value_new_float(f);
