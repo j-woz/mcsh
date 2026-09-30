@@ -105,7 +105,7 @@ Start on manual NEW 2024-05-16
 Support flags in signature for pwgen NEW 2024-08-06
 Start on dev guide NEW 2024-05-16
 List initialization = L (( list a b c )) NEW 2024-06-06
-Make < an alias for print and > an alias for read NEW 2024-09-14
+Make > an alias for print and < an alias for read NEW 2024-09-14
 Add feature to output last result value from program execution (mechanism is implemented) NEW 2024-09-14
 Support negation, unary operators + - ! NEW 2024-09-20
 Try GCC generics for mcsh_new(int), mcsh_new(string), etc. NEW 2024-12-06
