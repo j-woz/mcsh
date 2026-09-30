@@ -6,7 +6,9 @@
 #define _GNU_SOURCE // for asprintf(), vasprintf()
 #include <assert.h>
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -3648,6 +3650,9 @@ expr_scan_exception(mcsh_status* status)
 static bool mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr,
                               mcsh_value** output, mcsh_status* status);
 
+static bool mcsh_expr_eval_call(mcsh_vm* vm, mcsh_expr* expr,
+                                mcsh_value** output, mcsh_status* status);
+
 bool
 mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
               mcsh_status* status)
@@ -3712,6 +3717,10 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
       break;
     case MCSH_EXPR_TYPE_OP:
       mcsh_expr_eval_op(vm, expr, &value, status);
+      PROPAGATE(status);
+      break;
+    case MCSH_EXPR_TYPE_CALL:
+      mcsh_expr_eval_call(vm, expr, &value, status);
       PROPAGATE(status);
       break;
   }
@@ -3803,6 +3812,146 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
   if (output != NULL)
     *output = result;
   // Use maybe_assign()
+  return true;
+}
+
+/** A builtin math function in the expr syntax.  Exactly one of f1/f2 is
+    set, giving its arity.  All operate on and return floats via libm. */
+typedef struct
+{
+  const char* name;
+  double (*f1)(double);
+  double (*f2)(double, double);
+} math_fn;
+
+static double math_min(double a, double b) { return a < b ? a : b; }
+static double math_max(double a, double b) { return a > b ? a : b; }
+
+static const math_fn math_fns[] =
+{
+  { "sqrt",  sqrt,  NULL },
+  { "cbrt",  cbrt,  NULL },
+  { "exp",   exp,   NULL },
+  { "log",   log,   NULL },
+  { "log2",  log2,  NULL },
+  { "log10", log10, NULL },
+  { "sin",   sin,   NULL },
+  { "cos",   cos,   NULL },
+  { "tan",   tan,   NULL },
+  { "asin",  asin,  NULL },
+  { "acos",  acos,  NULL },
+  { "atan",  atan,  NULL },
+  { "floor", floor, NULL },
+  { "ceil",  ceil,  NULL },
+  { "round", round, NULL },
+  { "trunc", trunc, NULL },
+  { "pow",   NULL,  pow   },
+  { "atan2", NULL,  atan2 },
+  { "hypot", NULL,  hypot },
+  { "min",   NULL,  math_min },
+  { "max",   NULL,  math_max },
+  { NULL,    NULL,  NULL }
+};
+
+/** Attempt to evaluate a builtin math function by name.  On a name match,
+    sets *handled=true and produces the result (or RAISEs on a bad arg
+    count).  On no match, sets *handled=false and leaves output alone. */
+static bool
+math_call(mcsh_vm* vm, const char* name,
+          mcsh_value** argv, size_t argc,
+          mcsh_value** output, bool* handled, mcsh_status* status)
+{
+  *handled = false;
+
+  // abs preserves the operand type (int stays int, float stays float).
+  if (strcmp(name, "abs") == 0)
+  {
+    *handled = true;
+    RAISE_IF(argc != 1, status, NULL, mcsh_expr_line,
+             "mcsh.calc.arg_count",
+             "math function 'abs' requires 1 argument, given %zi", argc);
+    if (argv[0]->type == MCSH_VALUE_FLOAT)
+      *output = mcsh_value_new_float(fabs(argv[0]->number));
+    else
+    {
+      int64_t i;
+      mcsh_value_integer(argv[0], &i);
+      *output = mcsh_value_new_int(i < 0 ? -i : i);
+    }
+    return true;
+  }
+
+  for (const math_fn* m = math_fns; m->name != NULL; m++)
+  {
+    if (strcmp(name, m->name) != 0) continue;
+    *handled = true;
+    size_t want = (m->f1 != NULL) ? 1 : 2;
+    RAISE_IF(argc != want, status, NULL, mcsh_expr_line,
+             "mcsh.calc.arg_count",
+             "math function '%s' requires %zi argument(s), given %zi",
+             name, want, argc);
+    double a, b, r;
+    mcsh_to_float(&a, argv[0], status);
+    PROPAGATE(status);
+    if (want == 1)
+      r = m->f1(a);
+    else
+    {
+      mcsh_to_float(&b, argv[1], status);
+      PROPAGATE(status);
+      r = m->f2(a, b);
+    }
+    *output = mcsh_value_new_float(r);
+    return true;
+  }
+
+  return true;
+}
+
+static bool
+mcsh_expr_eval_call(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
+                    mcsh_status* status)
+{
+  mcsh_logger* logger = &vm->logger;
+  char* name = expr->children.data[0];
+  size_t argc = expr->children.size - 1;
+  LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "eval_call: '%s' (%zi)", name, argc);
+
+  // Evaluate each argument expression to a value.
+  mcsh_value** argv = malloc_checked(sizeof(mcsh_value*) * (argc + 1));
+  for (size_t i = 0; i < argc; i++)
+  {
+    mcsh_expr_eval(vm, expr->children.data[i+1], &argv[i], status);
+    if (status->code == MCSH_EXCEPTION) { free(argv); return true; }
+  }
+
+  // First try the builtin math functions.
+  bool handled = false;
+  math_call(vm, name, argv, argc, output, &handled, status);
+  if (status->code == MCSH_EXCEPTION) { free(argv); return true; }
+  if (handled) { free(argv); return true; }
+
+  // Not a math builtin: fall back to a user-defined function.
+  mcsh_value* f;
+  if (!mcsh_stack_search(logger, vm->stack.current, name, &f))
+  {
+    free(argv);
+    RAISE(status, NULL, mcsh_expr_line, "mcsh.calc.unknown_function",
+          "unknown function in expr: '%s'", name);
+  }
+
+  // mcsh_value_call() expects a list of mcsh_value* whose element 0 is
+  // the function name, matching the normal command-dispatch convention.
+  list_array A;
+  list_array_init(&A, argc + 1);
+  list_array_add(&A, mcsh_value_new_string(vm, name));
+  for (size_t i = 0; i < argc; i++)
+    list_array_add(&A, argv[i]);
+
+  mcsh_value_call(vm->main, f, &A, output, status);
+
+  list_array_finalize(&A);
+  free(argv);
   return true;
 }
 
@@ -4161,6 +4310,15 @@ mcsh_expr_construct_op(mcsh_operator op)
   return expr;
 }
 
+static inline mcsh_expr*
+mcsh_expr_construct_call(char* name)
+{
+  mcsh_expr* expr = mcsh_expr_construct(MCSH_EXPR_TYPE_CALL, 2);
+  expr->op = MCSH_OP_IDENTITY;
+  list_array_add(&expr->children, strdup(name));
+  return expr;
+}
+
 static inline void op_to_expr(list_array* ops_node,
                               list_array* ops_expr,
                               int count);
@@ -4223,6 +4381,16 @@ mcsh_node_to_expr(mcsh_node* node, mcsh_expr** output)
         op_to_expr(&node->children, &expr->children, 2);
       }
       break;
+    case MCSH_NODE_TYPE_CALL:
+      // children[0] is the function name; the rest are argument nodes.
+      expr = mcsh_expr_construct_call(node->children.data[0]);
+      for (size_t i = 1; i < node->children.size; i++)
+      {
+        mcsh_expr* arg;
+        mcsh_node_to_expr(node->children.data[i], &arg);
+        list_array_add(&expr->children, arg);
+      }
+      break;
     default:
       valgrind_fail_msg("node to expr: illegal type: %i\n",
                         node->type);
@@ -4269,6 +4437,12 @@ mcsh_expr_print(mcsh_expr* expr, int indent)
     case MCSH_EXPR_TYPE_STMTS:
       printf("  STMTS\n");
       for (size_t i = 0; i < expr->children.size; i++)
+        mcsh_expr_print(expr->children.data[i], indent+2);
+      break;
+    case MCSH_EXPR_TYPE_CALL:
+      print_spaces(indent);
+      printf("  CALL: '%s'\n", (char*) expr->children.data[0]);
+      for (size_t i = 1; i < expr->children.size; i++)
         mcsh_expr_print(expr->children.data[i], indent+2);
       break;
     default:

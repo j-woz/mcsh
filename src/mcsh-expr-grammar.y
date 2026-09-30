@@ -39,6 +39,7 @@
 
 %token LPAREN
 %token RPAREN
+%token COMMA
 %token NL
 %token END
 %token SEMICOLON
@@ -60,7 +61,7 @@
 %token <sval> AND
 %token <sval> OR
 
-%type <node> program lines line expr ;
+%type <node> program lines line expr arglist arg_items ;
 
 %left OR
 %left AND
@@ -116,6 +117,11 @@ expr:
                 TOKEN
                 {
                   $$ = mcsh_expr_node_token($1, mcsh_expr_line);
+                }
+        |
+                TOKEN LPAREN arglist RPAREN
+                {
+                  $$ = mcsh_node_call($1, $3, mcsh_expr_line);
                 }
         |
                 LPAREN expr RPAREN
@@ -230,6 +236,31 @@ expr:
                                     mcsh_expr_line);
                 }
         ;
+
+arglist:
+                %empty
+                {
+                  $$ = mcsh_node_args_new(mcsh_expr_line);
+                }
+        |
+                arg_items
+                {
+                  $$ = $1;
+                }
+                ;
+
+arg_items:
+                expr
+                {
+                  $$ = mcsh_node_args_add(
+                         mcsh_node_args_new(mcsh_expr_line), $1);
+                }
+        |
+                arg_items COMMA expr
+                {
+                  $$ = mcsh_node_args_add($1, $3);
+                }
+                ;
 
 %%
 

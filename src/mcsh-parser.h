@@ -28,6 +28,9 @@ mcsh_node_to_string(char* output, mcsh_node* node)
     case MCSH_NODE_TYPE_PAIR:
       strcpy(output, "PAIR");
       break;
+    case MCSH_NODE_TYPE_CALL:
+      strcpy(output, "CALL");
+      break;
     default:
       valgrind_fail();
   }

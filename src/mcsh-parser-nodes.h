@@ -71,6 +71,35 @@ mcsh_expr_node_token(char const* text, int line)
   return node;
 }
 
+/** Start an empty argument-list accumulator for a function call. */
+UNUSED static mcsh_node*
+mcsh_node_args_new(int line)
+{
+  return mcsh_node_construct(MCSH_NODE_TYPE_CALL, 2, line);
+}
+
+/** Append one evaluated-argument node to an accumulator from
+    mcsh_node_args_new(). */
+UNUSED static mcsh_node*
+mcsh_node_args_add(mcsh_node* args, mcsh_node* arg)
+{
+  list_array_add(&args->children, arg);
+  return args;
+}
+
+/** Build a function-call node: children[0] is the function name, the
+    remaining children are the argument nodes taken from `args` (an
+    accumulator from mcsh_node_args_new()). */
+UNUSED static mcsh_node*
+mcsh_node_call(char const* name, mcsh_node* args, int line)
+{
+  mcsh_node* node = mcsh_node_construct(MCSH_NODE_TYPE_CALL, 2, line);
+  list_array_add(&node->children, strdup(name));
+  for (size_t i = 0; i < args->children.size; i++)
+    list_array_add(&node->children, args->children.data[i]);
+  return node;
+}
+
 UNUSED static mcsh_node*
 mcsh_node_op(mcsh_operator op, mcsh_node* left, mcsh_node* right,
              int line)

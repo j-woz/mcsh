@@ -383,7 +383,9 @@ typedef enum
   MCSH_NODE_TYPE_BLOCK  = 5,
   MCSH_NODE_TYPE_SUBCMD = 6,
   MCSH_NODE_TYPE_SUBFUN = 7,
-  MCSH_NODE_TYPE_TAG    = 8
+  MCSH_NODE_TYPE_TAG    = 8,
+  /// Function call in expr syntax: children[0]=name, children[1..]=args
+  MCSH_NODE_TYPE_CALL   = 9
 } mcsh_node_type;
 
 typedef struct
@@ -404,7 +406,9 @@ typedef enum
 {
   MCSH_EXPR_TYPE_TOKEN,
   MCSH_EXPR_TYPE_OP,
-  MCSH_EXPR_TYPE_STMTS
+  MCSH_EXPR_TYPE_STMTS,
+  /// Function call: children[0]=name (char*), children[1..]=arg exprs
+  MCSH_EXPR_TYPE_CALL
 } mcsh_expr_type;
 
 typedef struct

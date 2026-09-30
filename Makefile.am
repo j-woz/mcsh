@@ -53,9 +53,9 @@ bin_mchp_SOURCES = src/mcsh-hp.c
 
 lib_LIBRARIES = lib/libmcsh.a
 
-bin_mcc_LDADD = lib/libmcsh.a
-bin_mcsh_LDADD = lib/libmcsh.a
-bin_mchp_LDADD = lib/libmcsh.a
+bin_mcc_LDADD = lib/libmcsh.a -lm
+bin_mcsh_LDADD = lib/libmcsh.a -lm
+bin_mchp_LDADD = lib/libmcsh.a -lm
 
 test_util_strlcpy_1_x_SOURCES = test/util/strlcpy-1.c
 test_util_strlcpy_1_x_LDADD   = lib/libmcsh.a

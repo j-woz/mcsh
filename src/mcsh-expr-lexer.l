@@ -35,6 +35,7 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
 "%" { /* printf("flex: MOD\n");   */ return MOD;   }
 "(" { return LPAREN; }
 ")" { return RPAREN; }
+"," { return COMMA; }
 
 "==" { return EQ; }
 "!=" { return NE; }
