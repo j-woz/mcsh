@@ -58,43 +58,43 @@ bin_mcsh_LDADD = lib/libmcsh.a -lm
 bin_mchp_LDADD = lib/libmcsh.a -lm
 
 test_util_strlcpy_1_x_SOURCES = test/util/strlcpy-1.c
-test_util_strlcpy_1_x_LDADD   = lib/libmcsh.a
+test_util_strlcpy_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_strmap_1_x_SOURCES = test/util/strmap-1.c
-test_util_strmap_1_x_LDADD   = lib/libmcsh.a
+test_util_strmap_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_strmap_2_x_SOURCES = test/util/strmap-2.c
-test_util_strmap_2_x_LDADD   = lib/libmcsh.a
+test_util_strmap_2_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_strmap_3_x_SOURCES = test/util/strmap-3.c
-test_util_strmap_3_x_LDADD   = lib/libmcsh.a
+test_util_strmap_3_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_strmap_4_x_SOURCES = test/util/strmap-4.c
-test_util_strmap_4_x_LDADD   = lib/libmcsh.a
+test_util_strmap_4_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_trim_x_SOURCES = test/util/trim.c
-test_util_trim_x_LDADD   = lib/libmcsh.a
+test_util_trim_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_buffer_1_x_SOURCES = test/util/buffer-1.c
-test_util_buffer_1_x_LDADD   = lib/libmcsh.a
+test_util_buffer_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_fork_1_x_SOURCES = test/util/fork-1.c
-test_util_fork_1_x_LDADD   = lib/libmcsh.a
+test_util_fork_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_util_log_1_x_SOURCES = test/util/log-1.c
-test_util_log_1_x_LDADD   = lib/libmcsh.a
+test_util_log_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_unit_named_args_1_x_SOURCES = test/unit/named-args-1.c
-test_unit_named_args_1_x_LDADD   = lib/libmcsh.a
+test_unit_named_args_1_x_LDADD   = lib/libmcsh.a -lm
 
 test_unit_named_args_2_x_SOURCES = test/unit/named-args-2.c
-test_unit_named_args_2_x_LDADD   = lib/libmcsh.a
+test_unit_named_args_2_x_LDADD   = lib/libmcsh.a -lm
 
 test_unit_named_args_3_x_SOURCES = test/unit/named-args-3.c
-test_unit_named_args_3_x_LDADD   = lib/libmcsh.a
+test_unit_named_args_3_x_LDADD   = lib/libmcsh.a -lm
 
 test_unit_arg_extras_x_SOURCES = test/unit/arg-extras.c
-test_unit_arg_extras_x_LDADD   = lib/libmcsh.a
+test_unit_arg_extras_x_LDADD   = lib/libmcsh.a -lm
 
 # Prevent spurious warning at link time
 ARFLAGS = cr

@@ -1635,6 +1635,20 @@ sg_parse_thing(mcsh_module* module,
                mcsh_status* status);
 
 bool
+sg_parse_string(mcsh_module* module,
+                mcsh_signature* signature,
+                size_t i, const char* text,
+                const char* dflt_text,
+                mcsh_status* status);
+
+static char*
+sg_thing_text(mcsh_thing* thing)
+{
+  valgrind_assert(thing->type == MCSH_THING_TOKEN);
+  return thing->data.token->text;
+}
+
+bool
 mcsh_signature_parse_block(mcsh_module* module,
                            mcsh_signature* signature,
                            mcsh_block* sgtokens,
@@ -1651,40 +1665,54 @@ mcsh_signature_parse_block(mcsh_module* module,
   list_array* T = &stmt0->things;
   size_t N = list_array_size(T);
 
-  signature->count = N;
-  /// Are extra arguments allowed (...) ?
+  // A default written as 'name:type=value' reaches us (via pair_to_stmt)
+  // as three consecutive things: a "=" marker, the name(:type), and the
+  // default value.  Count the actual slots by collapsing each such
+  // triple into one.
   signature->extras = false;
-  signature->slots = malloc_checked(N * sizeof(mcsh_slot));
-  for (size_t i = 0; i < N; i++)
+  size_t count = 0;
+  for (size_t i = 0; i < N; )
   {
-    mcsh_thing* thing = T->data[i];
-    // mcsh_value* value;
-    // mcsh_status status;
-
-    bool rc = sg_parse_thing(module, signature, i, thing, status);
-    CHECK0(rc);
-
-    /*
-    mcsh_token_to_value(&vm->logger,
-                        vm->stack.current,
-                        thing->data.token->text,
-                        &value,
-                        &status);
-
-    valgrind_assert(value != NULL);
-    valgrind_assert(value->type == MCSH_VALUE_STRING);
-    */
+    if (strcmp(sg_thing_text(T->data[i]), "=") == 0)
+      i += 3;
+    else
+      i += 1;
+    count++;
   }
 
-  printf("signature_parse: %zu\n", N);
+  signature->count = count;
+  signature->slots = malloc_checked(count * sizeof(mcsh_slot));
+
+  size_t slot = 0;
+  for (size_t i = 0; i < N; )
+  {
+    mcsh_thing* thing = T->data[i];
+    if (strcmp(sg_thing_text(thing), "=") == 0)
+    {
+      valgrind_assert_msg(i + 2 < N,
+                          "malformed default in signature");
+      char* name_text = sg_thing_text(T->data[i+1]);
+      char* dflt_text = sg_thing_text(T->data[i+2]);
+      bool rc = sg_parse_string(module, signature, slot,
+                                name_text, dflt_text, status);
+      CHECK0(rc);
+      PROPAGATE(status);
+      i += 3;
+    }
+    else
+    {
+      bool rc = sg_parse_string(module, signature, slot,
+                                sg_thing_text(thing), NULL, status);
+      CHECK0(rc);
+      PROPAGATE(status);
+      i += 1;
+    }
+    slot++;
+  }
+
+  printf("signature_parse: %zu\n", count);
   return true;
 }
-
-bool
-sg_parse_string(mcsh_module* module,
-                mcsh_signature* signature,
-                size_t i, const char* text,
-                mcsh_status* status);
 
 bool
 mcsh_signature_parse_values(mcsh_module* module,
@@ -1714,7 +1742,7 @@ mcsh_signature_parse_values(mcsh_module* module,
     mcsh_value* value = values->data[i];
     mcsh_to_string(logger, b, 1024, value);
 
-    bool rc = sg_parse_string(module, signature, i, b, status);
+    bool rc = sg_parse_string(module, signature, i, b, NULL, status);
     CHECK0(rc);
   }
 
@@ -1729,7 +1757,7 @@ sg_parse_thing(mcsh_module* module,
                mcsh_status* status)
 {
   char* text = thing->data.token->text;
-  bool rc = sg_parse_string(module, signature, i, text, status);
+  bool rc = sg_parse_string(module, signature, i, text, NULL, status);
   return rc;
 }
 
@@ -1737,38 +1765,42 @@ bool
 sg_parse_string(mcsh_module* module,
                 mcsh_signature* signature,
                 size_t i, const char* text,
+                const char* dflt_text,
                 mcsh_status* status)
 {
   char* t = strdupa(text);
   mcsh_value* dflt = NULL;
   mcsh_value_type type = MCSH_VALUE_ANY;
   char* c1 = strchr(t, ':');
-  if (c1 == NULL)
+  if (c1 != NULL)
   {
-    goto end;
-  }
-  char* c2 = strchrnul(c1+1, ':');
+    char* c2 = strchrnul(c1+1, ':');
 
-  if (*c2 != '\0')
+    // A default must be written with '=', not a second ':'.
+    if (*c2 != '\0')
+      RAISE(status, NULL, 0, "mcsh.syntax_error",
+            "signature default must use '=', not ':': '%s'", text);
+
+    // Get type: name:type
+    if (c2 > c1 + 1)
+    {
+      *c2 = '\0';
+      mcsh_value_type_code(c1 + 1, &type);
+    }
+    *c1 = '\0';
+  }
+
+  // Equals-form default: name=value or name:type=value.  This arrives as
+  // a separate token and overrides any colon-form default above.
+  if (dflt_text != NULL)
   {
-    char* d = c2 + 1;
-    printf("dflt string: '%s'\n", d);
-    printf("dflt: '%s'   \n", d);
     bool rc = mcsh_token_to_value(&module->vm->logger,
-                                  module->vm->stack.current, d,
+                                  module->vm->stack.current, dflt_text,
                                   false,
                                   &dflt, status);
     CHECK0(rc);
   }
 
-  // Get type:
-  if (c2 > c1 + 1)
-  {
-    *c2 = '\0';
-    mcsh_value_type_code(c1 + 1, &type);
-  }
-  end:
-  if (c1 != NULL) *c1 = '\0';
   printf("name: '%s' type=%i \n", t, type);
   slot_init(&signature->slots[i], t, dflt, type);
   return true;
