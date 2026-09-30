@@ -768,9 +768,11 @@ builtin_set_if_undefined(mcsh_bb* bb)
         goto next_entry;
 
     // Search in the current entry's variables
-    if (strmap_search_index(&entry->vars, name, NULL))
+    size_t index;
+    if (strmap_search_index(&entry->vars, name, &index))
     {
       // Variable exists, do nothing
+      maybe_assign(bb->output, &mcsh_null);
       return true;
     }
 
