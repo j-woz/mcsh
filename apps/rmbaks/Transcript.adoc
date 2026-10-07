@@ -1,0 +1,250 @@
+= rmbaks Investigation Notes
+Justin Wozniak
+2026-09-22
+:toc:
+:icons: font
+:source-highlighter: rouge
+:experimental:
+
+Findings from running `apps/mk-baks.sh` and `apps/rmbaks.mc` against the
+`apps/data` working directory, plus the loop `continue` defect found while
+running the test suite from test 1921.
+
+== Summary
+
+[cols="1,4,1,1",options="header"]
+|===
+| # | Issue | Location | Severity
+
+| 1
+| `os mv` never type-checks its destination argument
+| `src/builtins.c:1090`
+| High
+
+| 2
+| Modulo-by-zero aborts the interpreter; `rmbaks` triggers it
+| `apps/rmbaks.mc:64`, `src/mcsh.c:3824`
+| High
+
+| 3
+| `os mv X X` silently succeeds where shell `mv` fails
+| `src/builtins.c:1099`
+| Low
+
+| 4
+| Stale comment claims map lookup is broken
+| `apps/rmbaks.mc~:3`
+| Cosmetic
+
+| 5
+| Loop `continue` skipped the end condition (fixed, committed)
+| `src/mcsh.c:2546`
+| Fixed
+|===
+
+`rmbaks` exits `0` on every run regardless of issues 1-3, so none of them are
+visible without inspecting the filesystem afterward.
+
+== Issue 1: `os mv` does not type-check its destination
+
+=== Defect
+
+`builtin_os_rename()` checks the source argument twice and never checks the
+destination:
+
+[source,c]
+----
+mcsh_value* a = bb->args->data[2];
+mcsh_value* b = bb->args->data[3];
+TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 2,
+           "argument must be a string filename");
+TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 3,   // <1>
+           "argument must be a string filename");
+----
+<1> Re-tests `a`; should test `b`.
+
+=== Consequence
+
+This is a memory-safety bug, not merely a missing diagnostic. A non-string
+destination passes the check, and `b->string` -- in reality a `list_array*` --
+is passed to `rename(2)` as a path. The raw pointer bytes become the filename.
+
+.Reproducer
+[source,sh]
+----
+= L (( list ))
++ $L 1
+os mv apps/data/f $L
+print NO-ERROR-RAISED
+----
+
+Observed: prints `NO-ERROR-RAISED`, exits `0`, and moves `apps/data/f` out of
+the data directory to a 6-byte garbage filename in the repository root
+(`\360V\345M\314U`). Both artifacts have since been cleaned up.
+
+=== Fix
+
+One character. `os rm` at `src/builtins.c:1114` does it correctly, so this is
+an isolated copy-paste error rather than a pattern:
+
+[source,diff]
+----
+-  TYPE_CHECK(a, MCSH_VALUE_STRING, bb->status, "mv", 3,
++  TYPE_CHECK(b, MCSH_VALUE_STRING, bb->status, "mv", 3,
+----
+
+== Issue 2: Modulo-by-zero aborts the interpreter
+
+=== Defect
+
+`apps/rmbaks.mc:64` computes a new backup index:
+
+[source,sh]
+----
+= new (( $ $k - ( $random % ( $k - $last ) ) ))
+----
+
+When `$k == $last` the divisor is zero. `last` is initialized to `0` at line 54,
+so any backup numbered `~0~` hits this on the first iteration.
+
+=== Consequence
+
+mcsh dies on a hard assertion rather than raising a catchable `mcsh.*`
+exception:
+
+----
+valgrind_assert(): failed: src/mcsh.c:3824
+valgrind_assert(): mcc: ZERO DIVIDE (%)
+----
+
+The abort happens part-way through mutating the directory, leaving the backup
+set in an inconsistent state.
+
+=== Reproducer
+
+Reproduced on the first attempt:
+
+[source,sh]
+----
+mkdir apps/tmp-edge
+touch 'apps/tmp-edge/z.bak.~0~'
+./bin/mcsh apps/rmbaks.mc apps/tmp-edge
+----
+
+The `delete` and `mv` branches are selected by `$random`, so a loop of ~25
+attempts guarantees the `mv` branch is taken; in practice it hit immediately.
+A repeated index elsewhere in the list triggers the same path.
+
+=== Two separate fixes
+
+* **Script**: guard line 64 for `$k == $last` before dividing.
+* **Interpreter**: division and modulo by zero should raise a catchable
+  exception rather than abort. A script cannot currently defend against this.
+
+== Issue 3: `os mv X X` silently succeeds
+
+`builtin_os_rename()` calls `rename(2)`, which POSIX defines as returning `0`
+when both paths resolve to the same file. GNU coreutils `mv` instead fails:
+
+----
+mv: 'selftest' and 'selftest' are the same file
+----
+
+Run logs show this occurring in practice -- `k is 1 / new is 1` and
+`k is 7 / new is 7`. Harmless in itself, but it means the arithmetic at line 64
+can yield no-op iterations that still execute `= last $k`, advancing the
+`last` cursor on a rename that never happened.
+
+== Issue 4: Stale comment
+
+`apps/rmbaks.mc~:3` carries:
+
+----
+# Currently not able to find prior inserted base in map
+----
+
+This is obsolete. Map lookups work correctly across every run observed:
+
+----
+rmbaks found
+variable: 'map'[f.bak.]
+search: key='f.bak.'
+[12,14,16,17]
+----
+
+Indices accumulate properly per base. The comment is already absent from the
+current `rmbaks.mc`; only the `~` backup retains it.
+
+== Issue 5: Loop `continue` skipped the end condition (fixed)
+
+=== Defect
+
+`mcsh_do_loop()` handled `MCSH_CONTINUE` with a C `continue`:
+
+[source,c]
+----
+case MCSH_CONTINUE:
+{
+  status->code = MCSH_OK;
+  continue;      // <1>
+}
+----
+<1> Continues the enclosing `while (true)`, not the `switch`.
+
+That jumped back to the top of the C loop, bypassing the end-condition
+evaluation. For a bottom-tested loop the terminating condition was never
+checked.
+
+=== Consequence
+
+`test/script/4205-continue.mc` never terminated. Under valgrind the process
+reached 12 GB RSS and produced a 57 MB `.out` file before being killed. This
+was a regression from commit `9b05bde` ("Fix loop continue"), which replaced
+`loop_break = true; break;` with `continue;` -- `continue` should neither exit
+the loop nor bypass the condition.
+
+=== Fix
+
+Replace `continue` with `break`, exiting the `switch` so control falls through
+to the end-condition check. This matches `loop_check()` at `src/mcsh.c:2750`,
+the handler used by the other loop forms, which already treats `MCSH_CONTINUE`
+this way.
+
+`mcsh_stmts_execute()` returns immediately on `MCSH_CONTINUE`
+(`src/mcsh.c:1857`), so the remaining body statements are already skipped; the
+handler only needs to clear the status. Verified that the `exit 1` following
+`continue` in the test body is still correctly skipped.
+
+=== Verification
+
+* Clean build under `-Werror`.
+* All six loop tests pass under valgrind: `4201-while`, `4202-while-end`,
+  `4202-while-tail`, `4203-until-end`, `4204-break`, `4205-continue`.
+* `4205-continue` now runs exactly three iterations and exits `0`; its `.out`
+  file is 69 bytes.
+* Full suite from test 4205 to the end: `TEST ALL: OK.  COUNT=152`, exit `0`.
+
+Committed as `d084636` ("Probable fix for MCSH_CONTINUE"); `src/mcsh.c` is
+clean against `HEAD`.
+
+== Test environment
+
+`apps/mk-baks.sh` generates `f`, `g`, `h` plus a random number of numbered
+backups via `cp --backup=numbered`. The resulting 20-file `apps/data` tree was
+snapshotted before each destructive run and restored afterward.
+
+Because branch selection depends on `$random`, single runs are not
+representative. Six consecutive runs from identical input produced final file
+counts of 12, 9, 20, 13, 16, and 14 -- all exiting `0`, none reporting an
+error.
+
+== Suggested next steps
+
+. Fix `TYPE_CHECK(b, ...)` at `src/builtins.c:1090`.
+. Add a `$k == $last` guard at `apps/rmbaks.mc:64`.
+. Decide whether `%` and `/` by zero should raise `mcsh.arithmetic` rather than
+  abort via `valgrind_assert`.
+. Consider whether the `printf` tracing in the loop handlers
+  (`loop: caught continue:`, etc.) should become `LOG` calls. The loop tests
+  currently assert against this output, so changing it means updating the
+  corresponding `.out` files.
