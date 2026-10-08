@@ -1,6 +1,8 @@
 #!/bin/zsh
 set -eu
 
+# TODO: Convert this to MCSH - DONE
+
 THIS=${0:h:A}
 cd $THIS
 mkdir -pv data
