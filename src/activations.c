@@ -94,18 +94,15 @@ activation_this_get(mcsh_entry* entry,
   }
   char  t[PATH_MAX];
   strcpy(t, s);
-  bool rc = parent(t);
-  assert(rc);
+  // Directory containing the script.  parent() yields "." when the path
+  // has no directory component, so realpath() always resolves against the
+  // current directory and returns an absolute path.
+  parent(t);
   char  d[PATH_MAX];
   char* r = realpath(t, d);
   assert(r != NULL);
-  char  p[PATH_MAX];
-  char* c = getcwd(p, PATH_MAX);
-  assert(c != NULL);
-  strcat(c, "/");
-  strcat(c, r);
   mcsh_value* result =
-    mcsh_value_new_string(entry->stack->vm, c);
+    mcsh_value_new_string(entry->stack->vm, d);
   *output = result;
   status->code = MCSH_OK;
   return true;
