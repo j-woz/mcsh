@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <string.h>
 #include <libgen.h>
@@ -1006,6 +1007,7 @@ static bool builtin_os_basename(mcsh_bb* bb);
 static bool builtin_os_resolve(mcsh_bb* bb);
 static bool builtin_os_rename(mcsh_bb* bb);
 static bool builtin_os_remove(mcsh_bb* bb);
+static bool builtin_os_mkdir(mcsh_bb* bb);
 
 static bool
 builtin_os(mcsh_bb* bb)
@@ -1037,6 +1039,8 @@ builtin_os(mcsh_bb* bb)
       rc = builtin_os_rename(bb);
   else if (strcmp(subcommand->string, "rm") == 0)
       rc = builtin_os_remove(bb);
+  else if (strcmp(subcommand->string, "mkdir") == 0)
+      rc = builtin_os_mkdir(bb);
 
   else
     RAISE(bb->status, NULL, 0, "mcsh.exception.invalid_arguments",
@@ -1086,9 +1090,12 @@ builtin_os_cd(mcsh_bb* bb)
   valgrind_assert(bb->args->size == 3);
   mcsh_value* path = bb->args->data[2];
   mcsh_resolve(path);
+  TYPE_CHECK(path, MCSH_VALUE_STRING, bb->status, "cd", 2,
+             "argument must be a string directory name");
   int rc = chdir(path->string);
-  if (rc != 0)
-    perror("mcsh");
+  RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
+           "could not cd to: '%s' : %s",
+           path->string, strerror(errno));
   *bb->output = &mcsh_null;
   return true;
 }
@@ -1185,6 +1192,46 @@ builtin_os_remove(mcsh_bb* bb)
   RAISE_IF(rc != 0, bb->status, NULL, 0, "mcsh.os",
            "could not remove: '%s' : %s",
            v->string, strerror(errno));
+
+  *bb->output = mcsh_value_new_int(0);
+  return true;
+}
+
+/** Create directory path, including any missing parents (mkdir -p).
+    An already-existing component is not an error. */
+static bool
+os_mkdir_p(const char* path)
+{
+  char t[PATH_MAX];
+  size_t n = strlcpyj(t, path, PATH_MAX);
+  if (n >= PATH_MAX) return false;
+  // Strip a trailing slash so the final component is created below.
+  if (n > 0 && t[n-1] == '/') t[n-1] = '\0';
+  for (char* p = t + 1; *p != '\0'; p++)
+  {
+    if (*p != '/') continue;
+    *p = '\0';
+    if (mkdir(t, 0777) != 0 && errno != EEXIST) return false;
+    *p = '/';
+  }
+  if (mkdir(t, 0777) != 0 && errno != EEXIST) return false;
+  return true;
+}
+
+static bool
+builtin_os_mkdir(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_EQ(2);
+  mcsh_value* v = bb->args->data[2];
+  TYPE_CHECK(v, MCSH_VALUE_STRING, bb->status, "mkdir", 2,
+             "argument must be a string directory name");
+
+  mcsh_logger* logger = &bb->module->vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "mkdir: '%s'", v->string);
+
+  bool ok = os_mkdir_p(v->string);
+  RAISE_IF(!ok, bb->status, NULL, 0, "mcsh.os",
+           "could not mkdir: '%s' : %s", v->string, strerror(errno));
 
   *bb->output = mcsh_value_new_int(0);
   return true;
