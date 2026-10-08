@@ -33,7 +33,8 @@ mcsh_exec(UNUSED mcsh_module* module,
   }
   else
   {
-    int err = execv(cmd, a);
+    // execvp searches PATH so "! touch f" works like a shell command.
+    int err = execvp(cmd, a);
     if (err != 0)
     {
       perror("mcsh");
