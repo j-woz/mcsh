@@ -55,6 +55,21 @@ STRINGLITERAL ["](([\\]["])|([^"]))*["]
   return STRING;
 }
 
+"!=" {
+  mcsh_script_lval.sval = strdup(mcsh_script_text);
+  return STRING;
+}
+
+"<=" {
+  mcsh_script_lval.sval = strdup(mcsh_script_text);
+  return STRING;
+}
+
+">=" {
+  mcsh_script_lval.sval = strdup(mcsh_script_text);
+  return STRING;
+}
+
 ":=" {
   mcsh_script_lval.sval = strdup(mcsh_script_text);
   return STRING;
