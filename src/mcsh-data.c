@@ -471,7 +471,10 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     // Handle literals!
     int64_t integer;
     double number;
-    if (!ctx->quoted && is_integer(token, &integer)) {
+    bool boolean;
+    if (!ctx->quoted && is_boolean(token, &boolean)) {
+      value = mcsh_value_new_bool(boolean);
+    } else if (!ctx->quoted && is_integer(token, &integer)) {
       value = mcsh_value_new_int(integer);
     } else if (!ctx->quoted && is_float(token, &number)) {
       value = mcsh_value_new_float(number);

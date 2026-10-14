@@ -1,13 +1,13 @@
 
-# Boolean literal: true
+# Boolean literals are of type bool and print as true/false.
 print (( $ true ))
-# TEST:EXPECT: 1
+# TEST:EXPECT: true
 
 # Boolean literal: false
 print (( $ false ))
-# TEST:EXPECT: 0
+# TEST:EXPECT: false
 
-# true in arithmetic
+# In arithmetic a bool coerces to 1/0.
 print (( $ true + 1 ))
 # TEST:EXPECT: 2
 
@@ -33,8 +33,8 @@ print (( $ false || true ))
 
 # Case insensitivity: True
 print (( $ True ))
-# TEST:EXPECT: 1
+# TEST:EXPECT: true
 
 # Case insensitivity: FALSE
 print (( $ FALSE ))
-# TEST:EXPECT: 0
+# TEST:EXPECT: false

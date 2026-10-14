@@ -1266,6 +1266,14 @@ mcsh_value_new_int(int64_t i)
 }
 
 mcsh_value*
+mcsh_value_new_bool(bool b)
+{
+  mcsh_value* result = malloc(sizeof(mcsh_value));
+  mcsh_value_init_bool(result, b);
+  return result;
+}
+
+mcsh_value*
 mcsh_value_new_float(double f)
 {
   mcsh_value* result = malloc(sizeof(mcsh_value));
@@ -1430,6 +1438,9 @@ mcsh_value_assign(mcsh_value* target, mcsh_value* value)
       break;
     case MCSH_VALUE_INT:
       target->type = MCSH_VALUE_INT;
+      target->integer = value->integer;
+      break;
+    case MCSH_VALUE_BOOL:
       target->integer = value->integer;
       break;
     case MCSH_VALUE_FLOAT:
@@ -3714,7 +3725,7 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
           double  f;
           bool    b;
           if (is_boolean(text, &b))
-            value = mcsh_value_new_int(b ? 1 : 0);
+            value = mcsh_value_new_bool(b);
           else if (is_integer(text, &i))
             value = mcsh_value_new_int(i);
           else if (is_float(text, &f))
@@ -4008,6 +4019,7 @@ value_to_double(const mcsh_value* value, double* output)
   switch (value->type)
   {
     case MCSH_VALUE_INT:
+    case MCSH_VALUE_BOOL:
       *output = (double) value->integer;
       break;
     case MCSH_VALUE_FLOAT:
@@ -4215,6 +4227,7 @@ mcsh_value_integer(mcsh_value* value, int64_t* output)
   switch (value->type)
   {
     case MCSH_VALUE_INT:
+    case MCSH_VALUE_BOOL:
     {
       *output = value->integer;
       break;
@@ -4526,6 +4539,10 @@ mcsh_to_string(mcsh_logger* logger,
     case MCSH_VALUE_INT:
       actual = snprintf(result, max, "%"PRId64, value->integer);
       break;
+    case MCSH_VALUE_BOOL:
+      actual = snprintf(result, max, "%s",
+                        value->integer ? "true" : "false");
+      break;
     case MCSH_VALUE_FLOAT:
       actual = mcsh_strfromd(result, max, value->number);
       break;
@@ -4584,6 +4601,9 @@ mcsh_value_buffer(mcsh_logger* logger, const mcsh_value* value,
     case MCSH_VALUE_INT:
       actual = sprintf(t, "%"PRId64, value->integer);
       buffer_cat(output, t);
+      break;
+    case MCSH_VALUE_BOOL:
+      buffer_cat(output, value->integer ? "true" : "false");
       break;
     case MCSH_VALUE_FLOAT:
       actual = mcsh_strfromd(t, 64, value->number);
@@ -4646,6 +4666,7 @@ value_names_init(void)
      {MCSH_VALUE_MODULE,     "module"    },
      {MCSH_VALUE_LINK,       "link"      },
      {MCSH_VALUE_ACTIVATION, "activation"},
+     {MCSH_VALUE_BOOL,       "bool"      },
      {MCSH_VALUE_ANY,        "any"       },
      lookup_sentinel
     };

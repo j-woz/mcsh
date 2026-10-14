@@ -54,7 +54,7 @@ typedef struct mcsh_signature_s mcsh_signature;
 
 /* Sync this with mcsh.c type_names[] */
 /// Number of named types (size of enum + sentinel)
-#define MCSH_TYPE_COUNT 13
+#define MCSH_TYPE_COUNT 14
 typedef enum
 {
   MCSH_VALUE_NULL        =  0,
@@ -68,6 +68,7 @@ typedef enum
   MCSH_VALUE_MODULE      =  8,
   MCSH_VALUE_LINK        =  9,
   MCSH_VALUE_ACTIVATION  =  10,
+  MCSH_VALUE_BOOL        =  11,
   MCSH_VALUE_ANY         =  1000
 } mcsh_value_type;
 
@@ -757,6 +758,15 @@ mcsh_value_init_int(mcsh_value* value, int64_t i)
 }
 
 static inline void
+mcsh_value_init_bool(mcsh_value* value, bool b)
+{
+  mcsh_value_init(value);
+  value->type    = MCSH_VALUE_BOOL;
+  // Stored in the integer slot: true=1, false=0.
+  value->integer = b ? 1 : 0;
+}
+
+static inline void
 mcsh_value_init_float(mcsh_value* value, double number)
 {
   mcsh_value_init(value);
@@ -797,6 +807,7 @@ mcsh_value_init_module(mcsh_value* value, mcsh_module* module)
 mcsh_value* mcsh_value_new_null(void);
 mcsh_value* mcsh_value_new_link(mcsh_value* value);
 mcsh_value* mcsh_value_new_int(int64_t i);
+mcsh_value* mcsh_value_new_bool(bool b);
 mcsh_value* mcsh_value_new_float(double f);
 mcsh_value* mcsh_value_new_string(mcsh_vm* vm, const char* s);
 mcsh_value* mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...);
