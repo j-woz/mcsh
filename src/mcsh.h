@@ -146,6 +146,11 @@ typedef struct
   char*           name;
   mcsh_value*     dflt;
   mcsh_value_type type;
+  /// True for a flag slot (declared with a leading '-', e.g. -v or
+  /// -o=out): set by the token "-name" rather than positionally.  A flag
+  /// of type bool is presence-only (the token sets it true, no value
+  /// consumed); any other flag consumes the next token as its value.
+  bool            flag;
 } mcsh_slot;
 
 struct mcsh_signature_s

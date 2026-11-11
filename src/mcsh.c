@@ -130,7 +130,9 @@ mcsh_parse_options(unsigned int argc, char* argv[],
   list_array_init(&cmd_tmp, 0);
   while (true)
   {
-    int c = getopt(argc, argv, "c:h");
+    // Leading '+': stop at the first non-option (the script name) so that
+    // flags meant for the script (e.g. -f -x) are passed through untouched.
+    int c = getopt(argc, argv, "+c:h");
     if (c == -1) break;
     switch (c)
     {
@@ -1551,6 +1553,10 @@ mcsh_function_new(mcsh_module* module,
 
   mcsh_signature_parse_block(module, &result->signature, sgtokens,
                              status);
+  // On a signature syntax error, later slots are left uninitialized; do
+  // not print or use the signature -- let the exception propagate.
+  if (status->code != MCSH_OK)
+    return result;
   mcsh_signature_print(&result->signature);
 
   result->block = code;
@@ -1610,7 +1616,7 @@ mcsh_signature_init_block(mcsh_signature* sg,
 
 static inline void slot_init(mcsh_slot* slot,
                              char* name, mcsh_value* dflt,
-                             mcsh_value_type type);
+                             mcsh_value_type type, bool flag);
 
 /** Used for unit test cases */
 void
@@ -1623,18 +1629,19 @@ mcsh_signature_init(mcsh_signature* sg, uint16_t count,
   for (uint16_t i = 0; i < count; i++)
   {
     mcsh_slot* slot = &sg->slots[i];
-    slot_init(slot, names[i], dflts[i], MCSH_VALUE_ANY);
+    slot_init(slot, names[i], dflts[i], MCSH_VALUE_ANY, false);
   }
   sg->extras = extras;
 }
 
 static inline void
 slot_init(mcsh_slot* slot,
-          char* name, mcsh_value* dflt, mcsh_value_type type)
+          char* name, mcsh_value* dflt, mcsh_value_type type, bool flag)
 {
   slot->name  = strdup_checked(name);
   slot->dflt  = dflt;
   slot->type  = type;
+  slot->flag  = flag;
   if (slot->dflt != NULL)
     mcsh_value_grab(NULL, slot->dflt);
 }
@@ -1743,21 +1750,57 @@ mcsh_signature_parse_values(mcsh_module* module,
     return true;
   }
 
-  char b[1024];
-  signature->count = N;
-  /// Are extra arguments allowed (...) ?
-  signature->extras = false;
-  signature->slots = malloc_checked(N * sizeof(mcsh_slot));
+  // Stringify every token once so we can scan for "=" default markers,
+  // just as mcsh_signature_parse_block() does for a function's { } block.
+  char** texts = malloc_checked(N * sizeof(char*));
   for (size_t i = 0; i < N; i++)
   {
-    mcsh_value* value = values->data[i];
-    mcsh_to_string(logger, b, 1024, value);
-
-    bool rc = sg_parse_string(module, signature, i, b, NULL, status);
-    CHECK0(rc);
+    char b[1024];
+    mcsh_to_string(logger, b, 1024, values->data[i]);
+    texts[i] = strdup_checked(b);
   }
 
-  printf("signature_parse_values(): %zu\n", N);
+  // A default written name=value reaches us (via pair_to_stmt) as three
+  // tokens: "=", name, value.  Count the real slots by collapsing each
+  // such triple into one.
+  signature->extras = false;
+  size_t count = 0;
+  for (size_t i = 0; i < N; )
+  {
+    if (strcmp(texts[i], "=") == 0) i += 3; else i += 1;
+    count++;
+  }
+
+  signature->count = count;
+  signature->slots = malloc_checked(count * sizeof(mcsh_slot));
+
+  size_t slot = 0;
+  bool ok = true;
+  for (size_t i = 0; i < N && ok; )
+  {
+    if (strcmp(texts[i], "=") == 0)
+    {
+      valgrind_assert_msg(i + 2 < N, "malformed default in signature");
+      ok = sg_parse_string(module, signature, slot,
+                           texts[i+1], texts[i+2], status);
+      i += 3;
+    }
+    else
+    {
+      ok = sg_parse_string(module, signature, slot,
+                           texts[i], NULL, status);
+      i += 1;
+    }
+    slot++;
+    if (status->code != MCSH_OK) break;
+  }
+
+  for (size_t i = 0; i < N; i++) free(texts[i]);
+  free(texts);
+  CHECK0(ok);
+  PROPAGATE(status);
+
+  printf("signature_parse_values(): %zu\n", count);
   return true;
 }
 
@@ -1782,6 +1825,16 @@ sg_parse_string(mcsh_module* module,
   char* t = strdupa(text);
   mcsh_value* dflt = NULL;
   mcsh_value_type type = MCSH_VALUE_ANY;
+
+  // A leading '-' marks a flag slot (e.g. -v or -o=out).  Strip it; the
+  // slot name is the remainder.
+  bool flag = false;
+  if (t[0] == '-')
+  {
+    flag = true;
+    t++;
+  }
+
   char* c1 = strchr(t, ':');
   if (c1 != NULL)
   {
@@ -1792,7 +1845,7 @@ sg_parse_string(mcsh_module* module,
       RAISE(status, NULL, 0, "mcsh.syntax_error",
             "signature default must use '=', not ':': '%s'", text);
 
-    // Get type: name:type
+    // Get type: name:type .  'bool' resolves to MCSH_VALUE_BOOL here.
     if (c2 > c1 + 1)
     {
       *c2 = '\0';
@@ -1812,8 +1865,8 @@ sg_parse_string(mcsh_module* module,
     CHECK0(rc);
   }
 
-  printf("name: '%s' type=%i \n", t, type);
-  slot_init(&signature->slots[i], t, dflt, type);
+  printf("name: '%s' type=%i flag=%i\n", t, type, flag);
+  slot_init(&signature->slots[i], t, dflt, type, flag);
   return true;
 }
 
@@ -2895,6 +2948,22 @@ arg_name_is_positional(mcsh_value* name)
   return true;
 }
 
+/** If `value` is a flag token "-name" naming a flag slot, return that
+    slot's index; otherwise -1.  Shared by command-line and function-call
+    parameterization. */
+static int
+flag_slot_for(mcsh_signature* sg, mcsh_value* value)
+{
+  if (value == NULL || value->type != MCSH_VALUE_STRING) return -1;
+  const char* s = value->string;
+  if (s[0] != '-' || s[1] == '\0') return -1;
+  const char* name = s + 1;
+  for (uint16_t j = 0; j < sg->count; j++)
+    if (sg->slots[j].flag && strcmp(sg->slots[j].name, name) == 0)
+      return j;
+  return -1;
+}
+
 bool
 mcsh_parameterize(mcsh_signature* sg, list_array* A,
                   mcsh_parameters* P, mcsh_status* status)
@@ -2906,12 +2975,6 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
   show("parameterize A=%zi...", A->size);
   parameters_init(P, sg);
 
-  if (A->size > sg->count && ! sg->extras)
-  {
-    printf("too many arguments!\n");
-    return false;
-  }
-
   for (size_t i = 0; i < A->size; i++)
   {
     mcsh_arg* arg = list_array_get(A, i);
@@ -2919,9 +2982,33 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
       show("got: NULL");
     else
       show("got: '%s'", arg->name->string);
+
     // A numeric name (e.g. script args named "0", "1", ...) is treated
     // as positional; only a non-numeric name selects a slot by name.
-    if (arg->name == NULL || arg_name_is_positional(arg->name))
+    bool positional = arg->name == NULL || arg_name_is_positional(arg->name);
+
+    // Flag token "-name": set the matching flag slot.  A bool flag is
+    // presence-only; any other flag consumes the next token as its value.
+    int fj = positional ? flag_slot_for(sg, arg->value) : -1;
+    if (fj >= 0)
+    {
+      if (sg->slots[fj].type == MCSH_VALUE_BOOL)
+      {
+        set_positional_at(sg, mcsh_value_new_bool(true), P, fj, status);
+      }
+      else
+      {
+        i++;
+        RAISE_IF(i >= A->size, status, NULL, 0, "mcsh.invalid_arguments",
+                 "flag '-%s' requires a value", sg->slots[fj].name);
+        mcsh_arg* next = list_array_get(A, i);
+        set_positional_at(sg, next->value, P, fj, status);
+      }
+      PROPAGATE(status);
+      continue;
+    }
+
+    if (positional)
       set_positional_next(sg, arg->value, P, status);
     else
       set_named(sg, arg, P, status);
@@ -2968,6 +3055,8 @@ set_positional_next(mcsh_signature* sg, mcsh_value* value,
   printf("set_positional:\n");
   for (uint16_t j = 0; j < sg->count; j++)
   {
+    // Flag slots are filled by "-name", never positionally.
+    if (sg->slots[j].flag) continue;
     if (P->values[j] == NULL)
     {
       set_positional_at(sg, value, P, j, status);

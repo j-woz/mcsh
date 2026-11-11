@@ -518,7 +518,7 @@ arg_all(context* ctx, mcsh_value** output)
 static inline bool
 is_glob(const char* token)
 {
-  char* p = strchr(token, '*');
+  const char* p = strchr(token, '*');
   return (p != NULL);
 }
 
@@ -814,7 +814,8 @@ parse_subscript2(context* ctx, subscript* ss,
   contig* c = calloc(1, sizeof(*c));
   c->is_range = true;
   list_array_add(&ss->contigs, c);
-  char* p = strchr(t, ':');
+  // Cast away const: t is a writable buffer here and we terminate it below.
+  char* p = (char*) strchr(t, ':');
 
   if (p == t)  // E.g., ":5"
   {
