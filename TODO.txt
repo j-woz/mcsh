@@ -70,11 +70,9 @@ shift : Note that mcsh_entry has a shift for unknown reason
 default assignment:  'default x 3' or ':= x 3'
 default evaluation:  '$x:3' - but handle $PATH
 string buffer type
-V=3 command
 fast string appends
 calc builtin functions: abs(), round(), pow(), etc.
 Prompt NEW: 2023-09-09
-V=(( f $x ))
 Check 'loop while' NEW: 2023-09-09
 Builtin which NEW: 2023-11-11
 Comma operator in math NEW: 2023-12-05
@@ -115,6 +113,7 @@ Make sure "3" is evaluated as a string for sorts and arithmetic. NEW 2026-01-28
 New builtin variables $stdin $stdout $stderr for read/write
 Rename mcsh_to_string() to mcsh_to_string_out() &
 New mcsh_to_string_new(): allocates a new string. NEW 2026-05-19
+Exception catch syntax.  NEW 2026-11-19
 
 = Eclipse =
 
@@ -234,6 +233,7 @@ build list_out_item
 2024-09-20 drop variable
 2025-03-11 Use readline in mcc: NEW: 2023-08-19
 2025-03-13 Handle exceptions when interactive NEW: 2023-09-09
+2026-03-10 V=3 assignments and V=(( f $x ))
 2026-09-25 Make expr support floats NEW: 2023-08-19
 2026-10-13 true/false literals - bool type - DEP generics
 2026-11-19 Named arguments 'f x=3' NEW: 2023-11-08
