@@ -1,6 +1,6 @@
 
-# TEST:SKIP
 # TEST:ARGS_SCRIPT: -f -x dog
+# TEST:EXPECT: true false dog _ data
 signature -f:bool=false -g:bool=false -x=_ -y=_ z=data
 
 # f should be true
