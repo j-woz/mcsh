@@ -1,0 +1,82 @@
+= Claude Transcript Notes
+:toc:
+
+Notes kept across conversations.  Each entry has a timestamp in the
+form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
+
+== 2026-11-19 11:49:56
+
+=== Bisect study: first success of `V=(( f $x ))`
+
+* Test: `test/script/3207-attach-call.mc` (`TEST:EXPECT: V 4`).
+* Tool: `test/bisect-test.zsh` runs `git bisect` in a scratch worktree
+  under `bisect-tmp/`.  Default search is for the first commit where the
+  test succeeds; `-F` searches for the first failure.
+* Commits that do not compile, or are marked `TEST:SKIP`, are discarded
+  (exit 125).
+* Scope: only commits from the last year.  Older sources assume old
+  gcc and makefiles and are not supported.
+* Planned: `test/probe-template.zsh.m4` generates `bisect-tmp/probe.zsh`
+  via m4 and `m4/common.m4`.  It re-runs `autoreconf` and `configure`
+  only when `configure.ac` or `Makefile.am` changes.  Not yet wired into
+  `bisect-test.zsh`.
+* Status: a first-success bisect was running from `54fd8d1` (fails) to
+  `62d1bb9` (succeeds).  Scripts are not to be edited until it finishes.
+
+== 2026-11-19 12:27:32
+
+=== Probe: clean only after configure
+
+* `test/probe-template.zsh.m4` now runs `make clean` only after
+  `autoreconf` and `configure` have run, not before.  Applies to both
+  regeneration branches.  Edited while the running bisect used its
+  already-generated `probe.zsh`, so that run is unaffected.
+
+== 2026-11-19 12:58:21
+
+=== Binary search with skip log
+
+* `test/probe-template.zsh.m4` (m4 -P, see mk-doc.sh) writes
+  `SKIP <hash> <reason>` to `skips.log` for each commit it cannot
+  test: autoreconf, configure, make, or test-skip.  Build output is
+  kept in `build-logs/`.
+* `test/bisect-test.zsh` generates the probe from the template.  It
+  drops -Werror by default (-W keeps it), defaults START to the oldest
+  commit in the last year, and checks that the endpoints bracket the
+  change before bisecting.
+* Fixed while running: the probe needed the m4 include newline removed
+  (shebang); STOP and START are resolved to hashes in the main repo;
+  AM_CFLAGS is passed as one argument, not split on spaces.
+* Search for `3207-attach-call` started from `6a9d754` to `62d1bb9`.
+
+== 2026-11-19 13:08:32
+
+=== Timeouts abort the bisect
+
+* Build steps run through `step LIMIT NAME CMD...` in the probe.
+  Limits: autoreconf 15 s, configure 45 s, make 30 s, clean 30 s.
+* A build step that times out (exit 124) writes `TIMEOUT <hash> <name>`
+  to `skips.log` and exits 250, so `git bisect run` aborts.
+* A build step that fails for another reason is still skipped (125).
+* The test run has a 10 s limit with the same abort behavior.
+
+== 2026-11-19 13:13:56
+
+=== Result: when did `V=(( f $x ))` start working
+
+* Test `3207-attach-call`, first-success search from `54fd8d1`
+  to `62d1bb9`, run with `test/bisect-test.zsh`; `make -j 4`.
+* Candidates: `7b9e761` and `c323cec` (both 2026-03-10).
+* `d698d7e` (parent): feature absent.  Probe exit 0.
+* `7b9e761` "WS handling fixes for parser": the real change.  The
+  lexer now consumes whitespace before `))` and the grammar gains
+  `stmt WS`.  It does not build: a column-0 comment in the flex rules
+  section gives "unrecognized rule" at line 26.  Probe exit 125.
+* `c323cec` "Move comment back inside code block": moves that comment
+  into the code block.  Its diff against `7b9e761` is the comment
+  move only, with no code change.  It is the first commit that builds
+  with the fix, and the test passes.  Probe exit 1.
+* Conclusion: the feature was introduced by `7b9e761` on 2026-03-10
+  14:48:10 and first works in a buildable tree at `c323cec`, 14:50:17.
+* Scratch kept in `bisect-tmp/` (skips.log, build-logs/, run.log).
+* `test/script/3207-attach-call.mc` is a new test, not yet in git.
