@@ -4127,7 +4127,7 @@ mcsh_expr_eval_op(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
   char t[64];
   op_to_string(t, op);
   LOG(MCSH_LOG_EVAL, MCSH_DEBUG, "eval_op: %s", t);
-  mcsh_value* result;
+  mcsh_value* result = NULL;
 
   if (!is_math_op(op)) valgrind_fail_msg("unknown op: '%s'\n", t);
 
