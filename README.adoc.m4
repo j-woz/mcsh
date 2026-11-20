@@ -766,7 +766,7 @@ These read-only variables are always available:
 | `$this`       | Absolute directory of the running script.
 | `$time`       | Current time in seconds (float), fresh on each read.
 | `$random`     | A fresh pseudo-random integer on each read.
-| `$?`          | Exit code of the last external command.
+| `$?`          | Meant to be the exit code of the last external command, but not yet implemented: it is always `0`.
 | `$PWD`        | Working directory (an environment variable).
 | `$mcsh.argc`  | Number of command-line arguments, counting the script name: a script run with no arguments has `argc` 1.
 | `$mcsh.argv`  | List of command-line arguments; `(( get $mcsh.argv 0 ))` is the script name.
