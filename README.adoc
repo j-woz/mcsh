@@ -169,6 +169,9 @@ print $x          # 10
 print $x          # still 10
 ----
 
+`default` is a synonym for `:=`, so `default x 10` means the same as
+`:= x 10`.
+
 === Dropping a variable
 
 `drop` removes a variable.

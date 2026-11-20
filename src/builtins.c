@@ -749,7 +749,7 @@ builtin_set(mcsh_bb* bb)
 static bool
 builtin_set_if_undefined(mcsh_bb* bb)
 {
-  // := name value
+  // := name value     (or:  default name value)
   // Set variable to value only if variable is not already defined
   EXCEPTION_ARGC_EQ(2);
   mcsh_logger* logger = &bb->module->vm->logger;
@@ -1775,6 +1775,7 @@ builtins_add()
   table_add(mcsh.builtins, "$",         builtin_expr);
   table_add(mcsh.builtins, "=",         builtin_set);
   table_add(mcsh.builtins, ":=",        builtin_set_if_undefined);
+  table_add(mcsh.builtins, "default",   builtin_set_if_undefined);
   table_add(mcsh.builtins, "drop",      builtin_drop);
   table_add(mcsh.builtins, "global",    builtin_global);
   table_add(mcsh.builtins, "public",    builtin_public);

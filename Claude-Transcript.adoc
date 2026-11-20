@@ -153,3 +153,14 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
   startup and never updated, so the README claim that it is the last
   external command's exit code is wrong.  Only 5202 uses it, with no
   EXPECT.
+
+== 2026-11-20 10:43:52
+
+=== default as a synonym for :=
+
+* `default x 3` now means `:= x 3` (assign only if undefined): the
+  same builtin is registered under both names.
+* New test 0904-default; 0900-set-if-undefined still passes.
+* README "Assign only if undefined" mentions `default`.
+* TODO.txt line 69 ("default assignment") can now be marked done.
+* Also earlier: the README now says `$?` is not yet implemented.
