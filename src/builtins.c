@@ -746,51 +746,67 @@ builtin_set(mcsh_bb* bb)
   return rc;
 }
 
+/** Set variable name to value unless it is already defined: as a
+    variable, a module or global variable, an environment variable,
+    or a special such as $this.  This is the same test as $+name. */
 static bool
-builtin_set_if_undefined(mcsh_bb* bb)
+set_if_undefined(mcsh_bb* bb, mcsh_value* target, mcsh_value* value)
 {
-  // := name value     (or:  default name value)
-  // Set variable to value only if variable is not already defined
-  EXCEPTION_ARGC_EQ(2);
   mcsh_logger* logger = &bb->module->vm->logger;
-  mcsh_value* target = bb->args->data[1];
-  valgrind_assert_msg(target->type == MCSH_VALUE_STRING,
-                      "type: %i", target->type);
+  RAISE_IF(target->type != MCSH_VALUE_STRING,
+           bb->status, NULL, 0, "mcsh.invalid_arguments",
+           "default: the variable name must be a string");
   char* name = target->string;
 
-  // Check if variable exists in current scope by searching the stack
-  mcsh_entry* entry = bb->module->vm->stack.current;
-  bool modules_only = false;
+  mcsh_value* existing;
+  if (mcsh_stack_search(logger, bb->module->vm->stack.current,
+                        name, &existing))
+    return true;  // already defined: do nothing
 
-  while (entry != NULL)
-  {
-    if (modules_only)
-      if (entry->type != MCSH_ENTRY_MODULE)
-        goto next_entry;
-
-    // Search in the current entry's variables
-    size_t index;
-    if (strmap_search_index(&entry->vars, name, &index))
-    {
-      // Variable exists, do nothing
-      maybe_assign(bb->output, &mcsh_null);
-      return true;
-    }
-
-    if (entry->type == MCSH_ENTRY_FRAME)
-      modules_only = true;
-
-    next_entry:
-    entry = entry->parent;
-  }
-
-  // Variable is not defined, so set it
-  mcsh_value* value = bb->args->data[2];
   bool rc = mcsh_set_value(bb->module, name, value, bb->status);
   // Need to grab when doing: := x $T[$k]
   mcsh_value_grab(logger, value);
   maybe_assign(bb->output, value);
   return rc;
+}
+
+static bool
+builtin_set_if_undefined(mcsh_bb* bb)
+/** := name value   or   := name=value ...
+    default is a synonym for :=.  Sets each variable only if it is
+    not already defined (see set_if_undefined()). */
+{
+  maybe_assign(bb->output, &mcsh_null);
+  list_array* args = bb->args;
+
+  // name=value pairs arrive (via pair_to_stmt) as a "=" marker
+  // followed by the name and the value: three arguments each.
+  mcsh_value* first = args->size > 1 ? args->data[1] : NULL;
+  bool pairs = first != NULL && first->type == MCSH_VALUE_STRING &&
+               strcmp(first->string, "=") == 0;
+  if (! pairs)
+  {
+    EXCEPTION_ARGC_EQ(2);
+    return set_if_undefined(bb, args->data[1], args->data[2]);
+  }
+
+  mcsh_value* command = args->data[0];
+  RAISE_IF((args->size - 1) % 3 != 0, bb->status, NULL, 0,
+           "mcsh.invalid_arguments",
+           "%s: give NAME VALUE, or one or more NAME=VALUE",
+           command->string);
+  for (size_t i = 1; i < args->size; i += 3)
+  {
+    mcsh_value* marker = args->data[i];
+    RAISE_IF(marker->type != MCSH_VALUE_STRING ||
+             strcmp(marker->string, "=") != 0,
+             bb->status, NULL, 0, "mcsh.invalid_arguments",
+             "%s: give NAME VALUE, or one or more NAME=VALUE",
+             command->string);
+    set_if_undefined(bb, args->data[i+1], args->data[i+2]);
+    PROPAGATE(bb->status);
+  }
+  return true;
 }
 
 static bool
@@ -939,6 +955,8 @@ builtin_signature(mcsh_bb* bb)
     mcsh_value* rest = mcsh_rest_list(vm, &P);
     mcsh_value* old;
     table_set(&module->vm->globals, sg.rest, rest, (void*) &old);
+    // The globals table holds a reference (see mcsh_set_value())
+    mcsh_value_grab(logger, rest);
     link_to_global(module, sg.rest, rest);
   }
 

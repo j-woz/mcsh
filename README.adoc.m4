@@ -175,7 +175,16 @@ print $x          # still 10
 ----
 
 `default` is a synonym for `:=`, so `default x 10` means the same as
-`:= x 10`.
+`:= x 10`.  Either takes one or more `NAME=VALUE` pairs instead:
+
+----
+default k1=v1 k2=v2
+----
+
+"Already set" means anything `$+name` finds: a variable, a global
+(including a `KEY=VALUE` given on the command line), an environment
+variable, or a magic variable such as `$this`.  So `default PATH x`
+leaves the environment's `PATH` alone.
 
 === Dropping a variable
 

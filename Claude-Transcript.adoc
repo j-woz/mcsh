@@ -164,3 +164,20 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
 * README "Assign only if undefined" mentions `default`.
 * TODO.txt line 69 ("default assignment") can now be marked done.
 * Also earlier: the README now says `$?` is not yet implemented.
+
+== 2026-11-20 10:49:49
+
+=== default and := : env vars count as set, NAME=VALUE pairs
+
+* `:=`/`default` now use the same "defined" test as `$+name`
+  (mcsh_stack_search): variables, module vars, globals, environment
+  and specials count as set.  Before, only frame variables counted,
+  so `default PWD x` hid the environment's PWD.
+* New forms: `default NAME=VALUE` and `default k1=v1 k2=v2` (also
+  for `:=`).  Mixing pairs with other arguments raises an error.
+* Fixed a crash: assigning to a command-line `KEY=VALUE` global
+  (`mcsh g=5 script.mc` then `= g 7`) failed the refcount assert
+  in drop(), because add_globals() stored the value without a
+  reference.  The signature rest list global now takes one too.
+* New tests 0905-default-env, 0906-default-global,
+  0907-default-pairs, 0908-default-bad.  README updated.

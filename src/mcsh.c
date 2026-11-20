@@ -395,6 +395,9 @@ add_globals(mcsh_vm* vm, strmap* map)
     LOG(MCSH_LOG_DATA, MCSH_DEBUG,
         "add_global: '%s'='%s'\n", key, data);
     table_add(&vm->globals, key, value);
+    // The globals table holds a reference: replacing this global
+    // later (mcsh_set_value()) drops it.
+    mcsh_value_grab(logger, value);
   }
 }
 
