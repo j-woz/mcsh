@@ -493,6 +493,44 @@ mcsh_entry_init_macro(mcsh_entry* entry, mcsh_entry* parent)
   entry->module = parent->module;
 }
 
+mcsh_entry*
+mcsh_entry_module(mcsh_entry* entry)
+{
+  while (entry != NULL && entry->type != MCSH_ENTRY_MODULE)
+    entry = entry->parent;
+  return entry;
+}
+
+/** Build a module's argument list from the vm's argv: element 0 is
+    the script name (argv[0]), then the script's arguments. */
+static list_array*
+module_args_from_argv(mcsh_vm* vm)
+{
+  size_t n = 0;
+  if (vm->argv != NULL)
+    while (vm->argv[n] != NULL) n++;
+  list_array* L = list_array_construct(n > 0 ? n : 1);
+  for (size_t i = 0; i < n; i++)
+    list_array_add(L, mcsh_value_new_string(vm, vm->argv[i]));
+  return L;
+}
+
+list_array*
+mcsh_args(mcsh_entry* entry, mcsh_entry** owner)
+{
+  // Inplace and macro calls run in a scope that shares its caller's
+  // arguments: skip up to the frame or module that owns them.
+  while (entry != NULL &&
+         (entry->type == MCSH_ENTRY_SCOPE ||
+          entry->type == MCSH_ENTRY_MACRO))
+    entry = entry->parent;
+  if (owner != NULL) *owner = entry;
+  if (entry == NULL) return NULL;
+  if (entry->args == NULL && entry->type == MCSH_ENTRY_MODULE)
+    entry->args = module_args_from_argv(entry->stack->vm);
+  return entry->args;
+}
+
 static inline void
 mcsh_entry_init(mcsh_entry* entry, mcsh_entry* parent)
 {
@@ -1527,12 +1565,6 @@ mcsh_value_new_function(mcsh_module* module,
   return value;
 }
 
-static inline void
-mcsh_signature_init_block(mcsh_signature* sg,
-                          mcsh_vm* vm,
-                          mcsh_block* sgtokens,
-                          mcsh_status* status);
-
 static mcsh_function*
 mcsh_function_new(mcsh_module* module,
                   mcsh_fn_type type,
@@ -1544,13 +1576,6 @@ mcsh_function_new(mcsh_module* module,
   result->type = type;
   result->name = strdup(name);
 
-  /*
-  mcsh_signature_init_block(&result->signature,
-                            vm,
-                            sgtokens,
-                            status);
-  */
-
   mcsh_signature_parse_block(module, &result->signature, sgtokens,
                              status);
   // On a signature syntax error, later slots are left uninitialized; do
@@ -1561,57 +1586,6 @@ mcsh_function_new(mcsh_module* module,
 
   result->block = code;
   return result;
-}
-
-static inline void
-mcsh_signature_init_block(mcsh_signature* sg,
-                          mcsh_vm* vm,
-                          mcsh_block* sgtokens,
-                          mcsh_status* status)
-/** Initialize from function definition,
-    where signature tokens are in a block { x y z }
-    of mcsh_thing
-*/
-{
-  sg->extras = false;
-
-  mcsh_stmt* stmt0 = sgtokens->stmts.stmts.data[0];
-  sg->count = stmt0->things.size;
-  show("count: %u", sg->count);
-  if (sg->count > 0)
-  {
-    mcsh_thing* thing = stmt0->things.data[sg->count-1];
-    valgrind_assert(thing->type == MCSH_THING_TOKEN);
-    char* tail = thing->data.token->text;
-    if (strcmp(tail, "...") == 0)
-    {
-      sg->extras = true;
-      sg->count--;
-    }
-  }
-
-  sg->slots = malloc_checked(sg->count * sizeof(mcsh_slot));
-  for (uint16_t i = 0; i < sg->count; i++)
-  {
-    mcsh_thing* thing = stmt0->things.data[i];
-    mcsh_value* value;
-    valgrind_assert(thing->type == MCSH_THING_TOKEN);
-    printf("slot text: '%s'\n", thing->data.token->text);
-    mcsh_token_to_value(&vm->logger,
-                        vm->stack.current,
-                        thing->data.token->text,
-                        thing->data.token->quoted,
-                        &value,
-                        status);
-
-    valgrind_assert(value->type == MCSH_VALUE_STRING);
-    show("slot %u", i);
-    sg->slots[i].name = strdup(value->string);
-    sg->slots[i].dflt = NULL;
-    if (sg->slots[i].dflt != NULL)
-      mcsh_value_grab(NULL, sg->slots[i].dflt);
-    show("loop");
-  }
 }
 
 static inline void slot_init(mcsh_slot* slot,
@@ -1631,7 +1605,9 @@ mcsh_signature_init(mcsh_signature* sg, uint16_t count,
     mcsh_slot* slot = &sg->slots[i];
     slot_init(slot, names[i], dflts[i], MCSH_VALUE_ANY, false);
   }
-  sg->extras = extras;
+  sg->extras    = extras;
+  sg->rest      = NULL;
+  sg->rest_type = MCSH_VALUE_ANY;
 }
 
 static inline void
@@ -1666,16 +1642,90 @@ sg_thing_text(mcsh_thing* thing)
   return thing->data.token->text;
 }
 
+/** True if a signature token declares a rest parameter: NAME...,
+    NAME:TYPE... or ... by itself. */
+static bool
+sg_is_rest(const char* text)
+{
+  size_t n = strlen(text);
+  return n >= 3 && strcmp(text + n - 3, "...") == 0;
+}
+
+/** Parse the rest-parameter token text into signature->rest and
+    signature->rest_type, and allow extra arguments.
+    May RAISE mcsh.syntax_error: the caller must PROPAGATE. */
+static bool
+sg_parse_rest(mcsh_signature* signature, const char* text,
+              mcsh_status* status)
+{
+  char* t = strdupa(text);
+  t[strlen(t) - 3] = '\0';  // remove the "..."
+  signature->extras    = true;
+  signature->rest      = NULL;
+  signature->rest_type = MCSH_VALUE_ANY;
+  if (t[0] == '\0') return true;  // anonymous: just ...
+  RAISE_IF(t[0] == '-', status, NULL, 0, "mcsh.syntax_error",
+           "rest parameter cannot be a flag: '%s'", text);
+  char* colon = strchr(t, ':');
+  if (colon != NULL)
+  {
+    *colon = '\0';
+    RAISE_IF(t[0] == '\0' || colon[1] == '\0',
+             status, NULL, 0, "mcsh.syntax_error",
+             "rest parameter needs NAME:TYPE...: '%s'", text);
+    RAISE_IF(!mcsh_value_type_code(colon + 1, &signature->rest_type),
+             status, NULL, 0, "mcsh.syntax_error",
+             "unknown type in signature: '%s'", text);
+  }
+  signature->rest = strdup_checked(t);
+  return true;
+}
+
+/** RAISE if name_text declares a rest parameter in a position where
+    it is not allowed: not last, or with a default. */
+static void
+sg_reject_rest(const char* name_text, bool has_default,
+               mcsh_status* status)
+{
+  if (!sg_is_rest(name_text)) return;
+  if (has_default)
+    mcsh_raise(status, NULL, 0, "mcsh.syntax_error",
+               "rest parameter cannot have a default: '%s'",
+               name_text);
+  else
+    mcsh_raise(status, NULL, 0, "mcsh.syntax_error",
+               "rest parameter must be the last parameter: '%s'",
+               name_text);
+}
+
+/** RAISE if the rest parameter has the same name as another parameter */
+static void
+sg_check_rest_duplicate(mcsh_signature* sg, mcsh_status* status)
+{
+  if (sg->rest == NULL) return;
+  for (uint16_t j = 0; j < sg->count; j++)
+    if (strcmp(sg->slots[j].name, sg->rest) == 0)
+    {
+      mcsh_raise(status, NULL, 0, "mcsh.syntax_error",
+                 "rest parameter repeats a parameter name: '%s'",
+                 sg->rest);
+      return;
+    }
+}
+
 bool
 mcsh_signature_parse_block(mcsh_module* module,
                            mcsh_signature* signature,
                            mcsh_block* sgtokens,
                            mcsh_status* status)
+/** Parse a function's signature block { x y:int z=3 rest... } */
 {
+  signature->extras    = false;
+  signature->rest      = NULL;
+  signature->rest_type = MCSH_VALUE_ANY;
   if (sgtokens->stmts.stmts.size == 0)
   {
     signature->count = 0;
-    signature->extras = false;
     signature->slots = NULL;
     return true;
   }
@@ -1685,12 +1735,13 @@ mcsh_signature_parse_block(mcsh_module* module,
 
   // A default written as 'name:type=value' reaches us (via pair_to_stmt)
   // as three consecutive things: a "=" marker, the name(:type), and the
-  // default value.  Count the actual slots by collapsing each such
-  // triple into one.
-  signature->extras = false;
+  // default value.  Count the entries by collapsing each such triple
+  // into one, and remember where the last entry starts.
   size_t count = 0;
+  size_t last  = 0;
   for (size_t i = 0; i < N; )
   {
+    last = i;
     if (strcmp(sg_thing_text(T->data[i]), "=") == 0)
       i += 3;
     else
@@ -1698,35 +1749,56 @@ mcsh_signature_parse_block(mcsh_module* module,
     count++;
   }
 
+  // A rest parameter (NAME... or ...) is the last entry, without a
+  // default.  It is not a slot.
+  char* last_text = sg_thing_text(T->data[last]);
+  bool has_rest = strcmp(last_text, "=") != 0 && sg_is_rest(last_text);
+  if (has_rest) count--;
+
   signature->count = count;
-  signature->slots = malloc_checked(count * sizeof(mcsh_slot));
+  signature->slots =
+    count > 0 ? malloc_checked(count * sizeof(mcsh_slot)) : NULL;
 
   size_t slot = 0;
   for (size_t i = 0; i < N; )
   {
-    mcsh_thing* thing = T->data[i];
-    if (strcmp(sg_thing_text(thing), "=") == 0)
+    char* text = sg_thing_text(T->data[i]);
+    if (strcmp(text, "=") == 0)
     {
       valgrind_assert_msg(i + 2 < N,
                           "malformed default in signature");
       char* name_text = sg_thing_text(T->data[i+1]);
       char* dflt_text = sg_thing_text(T->data[i+2]);
+      sg_reject_rest(name_text, true, status);
+      PROPAGATE(status);
       bool rc = sg_parse_string(module, signature, slot,
                                 name_text, dflt_text, status);
       CHECK0(rc);
       PROPAGATE(status);
       i += 3;
+      slot++;
     }
-    else
+    else if (has_rest && i == last)
     {
-      bool rc = sg_parse_string(module, signature, slot,
-                                sg_thing_text(thing), NULL, status);
-      CHECK0(rc);
+      sg_parse_rest(signature, text, status);
       PROPAGATE(status);
       i += 1;
     }
-    slot++;
+    else
+    {
+      sg_reject_rest(text, false, status);
+      PROPAGATE(status);
+      bool rc = sg_parse_string(module, signature, slot,
+                                text, NULL, status);
+      CHECK0(rc);
+      PROPAGATE(status);
+      i += 1;
+      slot++;
+    }
   }
+
+  sg_check_rest_duplicate(signature, status);
+  PROPAGATE(status);
 
   printf("signature_parse: %zu\n", count);
   return true;
@@ -1742,10 +1814,12 @@ mcsh_signature_parse_values(mcsh_module* module,
 
   size_t N = list_array_size(values);
 
+  signature->extras    = false;
+  signature->rest      = NULL;
+  signature->rest_type = MCSH_VALUE_ANY;
   if (N == 0)
   {
     signature->count = 0;
-    signature->extras = false;
     signature->slots = NULL;
     return true;
   }
@@ -1761,18 +1835,26 @@ mcsh_signature_parse_values(mcsh_module* module,
   }
 
   // A default written name=value reaches us (via pair_to_stmt) as three
-  // tokens: "=", name, value.  Count the real slots by collapsing each
-  // such triple into one.
-  signature->extras = false;
+  // tokens: "=", name, value.  Count the entries by collapsing each
+  // such triple into one, and remember where the last entry starts.
   size_t count = 0;
+  size_t last  = 0;
   for (size_t i = 0; i < N; )
   {
+    last = i;
     if (strcmp(texts[i], "=") == 0) i += 3; else i += 1;
     count++;
   }
 
+  // A rest parameter (NAME... or ...) is the last entry, without a
+  // default.  It is not a slot.
+  bool has_rest =
+    strcmp(texts[last], "=") != 0 && sg_is_rest(texts[last]);
+  if (has_rest) count--;
+
   signature->count = count;
-  signature->slots = malloc_checked(count * sizeof(mcsh_slot));
+  signature->slots =
+    count > 0 ? malloc_checked(count * sizeof(mcsh_slot)) : NULL;
 
   size_t slot = 0;
   bool ok = true;
@@ -1781,19 +1863,31 @@ mcsh_signature_parse_values(mcsh_module* module,
     if (strcmp(texts[i], "=") == 0)
     {
       valgrind_assert_msg(i + 2 < N, "malformed default in signature");
+      sg_reject_rest(texts[i+1], true, status);
+      if (status->code != MCSH_OK) break;
       ok = sg_parse_string(module, signature, slot,
                            texts[i+1], texts[i+2], status);
       i += 3;
+      slot++;
+    }
+    else if (has_rest && i == last)
+    {
+      ok = sg_parse_rest(signature, texts[i], status);
+      i += 1;
     }
     else
     {
+      sg_reject_rest(texts[i], false, status);
+      if (status->code != MCSH_OK) break;
       ok = sg_parse_string(module, signature, slot,
                            texts[i], NULL, status);
       i += 1;
+      slot++;
     }
-    slot++;
     if (status->code != MCSH_OK) break;
   }
+  if (ok && status->code == MCSH_OK)
+    sg_check_rest_duplicate(signature, status);
 
   for (size_t i = 0; i < N; i++) free(texts[i]);
   free(texts);
@@ -1849,7 +1943,9 @@ sg_parse_string(mcsh_module* module,
     if (c2 > c1 + 1)
     {
       *c2 = '\0';
-      mcsh_value_type_code(c1 + 1, &type);
+      RAISE_IF(!mcsh_value_type_code(c1 + 1, &type),
+               status, NULL, 0, "mcsh.syntax_error",
+               "unknown type in signature: '%s'", text);
     }
     *c1 = '\0';
   }
@@ -1887,7 +1983,11 @@ mcsh_signature_print(mcsh_signature* sg)
     }
     printf(" ");
   }
-  if (sg->extras) printf("...");
+  if (sg->extras)
+  {
+    if (sg->rest != NULL) printf("%s", sg->rest);
+    printf("...");
+  }
   printf("\n");
 }
 
@@ -1901,6 +2001,7 @@ mcsh_signature_finalize(mcsh_signature* sg)
       mcsh_value_drop(NULL, sg->slots[i].dflt);
   }
   free(sg->slots);
+  free(sg->rest);
 }
 
 bool mcsh_stmts_execute(mcsh_module* module, mcsh_stmts* stmts,
@@ -2329,9 +2430,9 @@ static bool add_word_split_list(list_array* args, mcsh_value* value);
 
 static bool
 add_word_split(list_array* args, mcsh_value* value)
+/** Add value to args as separate words: each element of a list (from
+    a glob, or from $*) becomes its own argument. */
 {
-  printf("split\n");
-
   switch (value->type)
   {
     case MCSH_VALUE_STRING:
@@ -2867,7 +2968,8 @@ loop_check(mcsh_status* status)
 }
 
 static bool set_params(list_array* A, mcsh_value* f,
-                       mcsh_entry* entry, mcsh_status* status);
+                       mcsh_entry* entry, list_array** frame_args,
+                       mcsh_status* status);
 
 static bool
 mcsh_value_call(mcsh_module* module, mcsh_value* f,
@@ -2900,11 +3002,23 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
       break;
   }
   module->vm->stack.current = entry;
-  entry->args = A;
+  list_array* frame_args = NULL;
   bool rc;
-  rc = set_params(A, f, module->vm->stack.current, status);
+  rc = set_params(A, f, entry, &frame_args, status);
   CHECK(rc, "call(): set_params() failed!");
-  PROPAGATE(status);
+  if (status->code != MCSH_OK)
+  {
+    // Binding failed: leave the callee's frame before propagating.
+    module->vm->stack.current = entry->parent;
+    return true;
+  }
+  // A normal function owns its argument list for $0, $1, $@ and $*;
+  // an inplace or macro call shares its caller's (see mcsh_args()).
+  if (frame_args != NULL)
+  {
+    entry->args  = frame_args;
+    entry->shift = 0;
+  }
   rc = mcsh_stmts_execute(module, &block->stmts, output, status);
   CHECK(rc, "call(): failed for '%s'", function->name);
   mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
@@ -2912,16 +3026,22 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
   if (status->code == MCSH_RETURN)
     status->code = MCSH_OK;
   module->vm->stack.current = entry->parent;
+  if (frame_args != NULL)
+  {
+    // Frees the list only: the values belong to the caller.
+    entry->args = NULL;
+    list_array_free(frame_args);
+  }
   return true;
 }
 
 static inline bool set_positional_next(mcsh_signature* sg,
-                                       mcsh_value* value,
+                                       mcsh_value* value, bool text,
                                        mcsh_parameters* P,
                                        mcsh_status* status);
 
 static inline bool set_positional_at(mcsh_signature* sg,
-                                     mcsh_value* value,
+                                     mcsh_value* value, bool text,
                                      mcsh_parameters* P, uint16_t j,
                                      mcsh_status* status);
 
@@ -2994,7 +3114,8 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
     {
       if (sg->slots[fj].type == MCSH_VALUE_BOOL)
       {
-        set_positional_at(sg, mcsh_value_new_bool(true), P, fj, status);
+        set_positional_at(sg, mcsh_value_new_bool(true), false,
+                          P, fj, status);
       }
       else
       {
@@ -3002,14 +3123,14 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
         RAISE_IF(i >= A->size, status, NULL, 0, "mcsh.invalid_arguments",
                  "flag '-%s' requires a value", sg->slots[fj].name);
         mcsh_arg* next = list_array_get(A, i);
-        set_positional_at(sg, next->value, P, fj, status);
+        set_positional_at(sg, next->value, next->text, P, fj, status);
       }
       PROPAGATE(status);
       continue;
     }
 
     if (positional)
-      set_positional_next(sg, arg->value, P, status);
+      set_positional_next(sg, arg->value, arg->text, P, status);
     else
       set_named(sg, arg, P, status);
     // Propagate the specific exception (e.g. invalid type) raised above:
@@ -3032,6 +3153,7 @@ parameters_init(mcsh_parameters* P, mcsh_signature* sg)
   int list_size = sg->extras ? 4 : 0;
   list_array_init(&P->extra_names,  list_size);
   list_array_init(&P->extra_values, list_size);
+  list_array_init(&P->positional,   4);
 }
 
 void
@@ -3046,10 +3168,72 @@ mcsh_parameters_finalize(mcsh_parameters* P)
   free(P->values);
   list_array_finalize(&P->extra_names);
   list_array_finalize(&P->extra_values);
+  list_array_finalize(&P->positional);
 }
 
+mcsh_value*
+mcsh_rest_list(mcsh_vm* vm, mcsh_parameters* P)
+{
+  size_t n = P->extra_values.size;
+  mcsh_value* result = mcsh_value_new_list_sized(vm, n);
+  for (size_t k = 0; k < n; k++)
+  {
+    mcsh_value* v = list_array_get(&P->extra_values, k);
+    mcsh_value_grab(NULL, v);
+    list_array_add(result->list, v);
+  }
+  return result;
+}
+
+/** Convert value to type where MCSH allows it; otherwise return value
+    itself, and the caller's type check reports the mismatch.
+      int:   from text that is an integer
+      float: from an int, or from text that is a number
+      bool:  from the int 0 or 1, or from text true, false, 0 or 1
+    text is true for a string from the command line; a quoted string
+    in a function call stays a string. */
+static mcsh_value*
+coerce(mcsh_value* value, mcsh_value_type type, bool text)
+{
+  if (value->type == type) return value;
+  bool from_text = text && value->type == MCSH_VALUE_STRING;
+  int64_t i;
+  double  d;
+  bool    b;
+  switch (type)
+  {
+    case MCSH_VALUE_INT:
+      if (from_text && is_integer(value->string, &i))
+        return mcsh_value_new_int(i);
+      break;
+    case MCSH_VALUE_FLOAT:
+      if (value->type == MCSH_VALUE_INT)
+        return mcsh_value_new_float((double) value->integer);
+      if (from_text && is_integer(value->string, &i))
+        return mcsh_value_new_float((double) i);
+      if (from_text && is_float(value->string, &d))
+        return mcsh_value_new_float(d);
+      break;
+    case MCSH_VALUE_BOOL:
+      if (value->type == MCSH_VALUE_INT &&
+          (value->integer == 0 || value->integer == 1))
+        return mcsh_value_new_bool(value->integer == 1);
+      if (from_text && is_boolean(value->string, &b))
+        return mcsh_value_new_bool(b);
+      if (from_text && is_integer(value->string, &i) &&
+          (i == 0 || i == 1))
+        return mcsh_value_new_bool(i == 1);
+      break;
+    default:
+      break;
+  }
+  return value;
+}
+
+/** Bind a positional argument: to the next free non-flag slot, or
+    else to the rest parameter.  Records it in P->positional. */
 static inline bool
-set_positional_next(mcsh_signature* sg, mcsh_value* value,
+set_positional_next(mcsh_signature* sg, mcsh_value* value, bool text,
                     mcsh_parameters* P, mcsh_status* status)
 {
   printf("set_positional:\n");
@@ -3059,21 +3243,41 @@ set_positional_next(mcsh_signature* sg, mcsh_value* value,
     if (sg->slots[j].flag) continue;
     if (P->values[j] == NULL)
     {
-      set_positional_at(sg, value, P, j, status);
+      set_positional_at(sg, value, text, P, j, status);
+      PROPAGATE(status);
+      // Record the bound (possibly converted) value:
+      list_array_add(&P->positional, P->values[j]);
       return true;
     }
   }
 
   if (! sg->extras)
-    valgrind_fail_msg("too many arguments!");
+  {
+    buffer B;
+    buffer_init(&B, 64);
+    mcsh_value_buffer(NULL, value, &B);
+    mcsh_raise(status, NULL, 0, "mcsh.invalid_arguments",
+               "too many arguments: unexpected '%s'", B.data);
+    buffer_finalize(&B);
+    return true;
+  }
   printf("set extra:\n");
+  mcsh_value* bound = value;
+  if (sg->rest_type != MCSH_VALUE_ANY)
+  {
+    bound = coerce(value, sg->rest_type, text);
+    const char* rname = sg->rest != NULL ? sg->rest : "...";
+    TYPE_CHECK(bound, sg->rest_type, status, rname,
+               P->extra_values.size, "bad type");
+  }
   list_array_add(&P->extra_names,  NULL);
-  list_array_add(&P->extra_values, value);
+  list_array_add(&P->extra_values, bound);
+  list_array_add(&P->positional,   bound);
   return true;
 }
 
 static inline bool
-set_positional_at(mcsh_signature* sg, mcsh_value* value,
+set_positional_at(mcsh_signature* sg, mcsh_value* value, bool text,
                   mcsh_parameters* P, uint16_t j,
                   mcsh_status* status)
 {
@@ -3082,6 +3286,7 @@ set_positional_at(mcsh_signature* sg, mcsh_value* value,
   if (sg->slots[j].type != MCSH_VALUE_ANY)
   {
     printf("type check\n");
+    value = coerce(value, sg->slots[j].type, text);
     TYPE_CHECK(value, sg->slots[j].type, status, name, j,
                "bad type");
   }
@@ -3116,7 +3321,7 @@ set_named(mcsh_signature* sg, mcsh_arg* arg,
         return true;
       }
       // Assign by slot index; this type-checks the value:
-      set_positional_at(sg, arg->value, P, j, status);
+      set_positional_at(sg, arg->value, arg->text, P, j, status);
       found = true;
       break;
     }
@@ -3142,7 +3347,8 @@ set_defaults(mcsh_signature* sg, mcsh_parameters* P,
       printf(" found NULL\n");
       if (sg->slots[j].dflt != NULL)
       {
-        set_positional_at(sg, sg->slots[j].dflt, P, j, status);
+        set_positional_at(sg, sg->slots[j].dflt, false, P, j, status);
+        PROPAGATE(status);
       }
       else
       {
@@ -3205,15 +3411,14 @@ mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L)
   list_array_init(L, N);
   for (size_t i = 0; i < N; i++)
   {
-    mcsh_arg* arg = malloc(sizeof(*arg));
-    // NOTE: This numeric name makes the arg "named" (the index as a
-    // string), so mcsh_parameterize() routes it to set_named() and tries
-    // to match a slot called "0", "1", ... rather than filling slots
-    // positionally. Keeping the numeric name for now (may be useful
-    // later), but parameterization must handle it as positional.
-    arg->name  = mcsh_value_new_stringv(vm, "%zi", i);
+    mcsh_arg* arg = malloc_checked(sizeof(*arg));
+    // NOTE: The numeric name ("0", "1", ...) is treated as positional by
+    // mcsh_parameterize() (see arg_name_is_positional()).
     char* t = A[i];
-    arg->value = mcsh_value_new(vm, t);
+    mcsh_arg_init(arg, mcsh_value_new_stringv(vm, "%zi", i),
+                  mcsh_value_new(vm, t));
+    // Command-line text: converted to the parameter's type on binding
+    arg->text = true;
     list_array_add(L, arg);
   }
 }
@@ -3248,11 +3453,13 @@ mcsh_parameters_print(mcsh_parameters* P)
 
 static bool
 set_params(list_array* A, mcsh_value* f, mcsh_entry* entry,
-           mcsh_status* status)
+           list_array** frame_args, mcsh_status* status)
 /** Set up mcsh_entry with function call parameterization
     A: list of mcsh_value* : including function name!
     f: mcsh_value<function>
     entry: the current stack frame
+    frame_args: OUT: for a normal function, a new list for $0, $1, ...
+                (the caller frees it); untouched otherwise
  */
 {
   // mcsh_value* function_name_value = A->data[0];
@@ -3292,13 +3499,14 @@ set_params(list_array* A, mcsh_value* f, mcsh_entry* entry,
     list_array_add(&L, arg);
   }
 
-  bool rc = mcsh_parameterize(&f->function->signature, &L, &P,
-                              status);
+  mcsh_signature* sg = &f->function->signature;
+  bool rc = mcsh_parameterize(sg, &L, &P, status);
   valgrind_assert(rc);
+  // On a binding error, some slots may be unbound: bind nothing.
+  PROPAGATE(status);
   mcsh_parameters_print(&P);
 
-  int i = 0;
-  for ( ; i < P.count; i++)
+  for (int i = 0; i < P.count; i++)
   {
     show("set parameter to stack entry: %i", i);
     char*       name  = P.names[i];
@@ -3307,16 +3515,24 @@ set_params(list_array* A, mcsh_value* f, mcsh_entry* entry,
     strmap_add(&entry->vars, name, value);
     mcsh_value_grab(logger, value);
   }
-  if (f->function->signature.extras)
+
+  // A named rest parameter is a list of the leftover arguments
+  if (sg->rest != NULL)
   {
-    size_t args_size = P.count - i;
-    LOG(MCSH_LOG_DATA, MCSH_DEBUG, "args_size: %zi", args_size);
-    mcsh_value* args =
-      mcsh_value_new_list_sized(
-        entry->stack->vm, args_size);
-    for ( ; i < P.count; i++)
-      list_array_add(args->list, A->data[i]);
-    strmap_add(&entry->vars, "args", args);
+    mcsh_value* rest = mcsh_rest_list(entry->stack->vm, &P);
+    strmap_add(&entry->vars, sg->rest, rest);
+    mcsh_value_grab(logger, rest);
+  }
+
+  // A normal function's $0, $1, $@ and $*: its name, then its
+  // positional arguments (not flags or name=value arguments)
+  if (f->function->type == MCSH_FN_NORMAL)
+  {
+    list_array* FA = list_array_construct(P.positional.size + 1);
+    list_array_add(FA, A->data[0]);
+    for (size_t k = 0; k < P.positional.size; k++)
+      list_array_add(FA, P.positional.data[k]);
+    *frame_args = FA;
   }
   return true;
 }
@@ -4778,11 +4994,13 @@ mcsh_value_type_name(mcsh_value_type type, char* output)
 
 bool
 mcsh_value_type_code(char* name, mcsh_value_type* type)
+/** Look up a type by name, e.g. "int".  Returns false, leaving *type
+    unchanged, if the name is not a type (NULL is not a usable type). */
 {
   value_names_init();
   printf("value_type_code: '%s'\n", name);
   int result = lookup_by_text(type_names, name);
-  valgrind_assert_msg(result > 0, "bad name: '%s'\n", name);
+  if (result <= 0) return false;
   *type = result;
   return true;
 }

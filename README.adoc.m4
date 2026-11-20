@@ -37,11 +37,33 @@ script as its arguments.
 $ mcsh V1=text1 V2=text2 script.mc arg1 arg2 arg3
 ----
 
+Inside the script, declare each `KEY=VALUE` name with `global` to read it:
+
+----
+$ mcsh x=42 script.mc
+
+global x
+print $x            # 42
+----
+
 Script flags that begin with `-` are passed through to the script untouched
 (see <<_command_line_arguments>>):
 
 ----
 $ mcsh script.mc -v -o out.txt input.txt
+----
+
+=== Executable scripts
+
+A script whose first line is `#!/usr/bin/env mcsh` and which has its
+execute bit set can be run directly, if `mcsh` is on the `PATH`.  Its
+arguments are bound with `signature` (see <<_command_line_arguments>>):
+
+----
+#!/usr/bin/env mcsh
+
+signature DIR
+print DIR: $DIR
 ----
 
 === Run interactively
@@ -535,7 +557,8 @@ macro   n { } { print HELLO }
 === Signatures
 
 The signature block declares the parameters.  A parameter may carry a
-type and/or a default, and may be a flag.
+type and/or a default, and may be a flag.  The last parameter may be a
+rest parameter, which collects any extra arguments.
 
 [cols="1,3"]
 |===
@@ -547,11 +570,15 @@ type and/or a default, and may be a flag.
 | `x:int=789`    | Typed with a default.
 | `-v:bool=false`| A boolean *flag*: the token `-v` sets it to `true`.
 | `-o=out`       | A value flag: `-o VALUE` sets it; defaults to `out`.
-| `...`          | Collect any extra arguments (variadic).
+| `+rest...+`    | A rest parameter: a list of the leftover arguments.
+| `+rest:int...+` | A typed rest parameter: each leftover is type-checked.
+| `+...+`        | Allows extra arguments without naming them.
 |===
 
 A default must be written with `=`, never a second colon (`x:int:789` is a
-syntax error).
+syntax error).  A rest parameter must be the last parameter, cannot have
+a default or be a flag, and cannot repeat another parameter's name.
+Each of these is a syntax error, as is an unknown type name.
 
 === Calling conventions
 
@@ -570,9 +597,17 @@ f x=10 y=20 z=30  # all named            -> x 10 y 20 z 30
 f 1 z=5 y=9       # positional + named   -> x 1 y 9 z 5
 ----
 
+Some arguments are converted to the parameter's type before the type
+check: an `int` becomes a `float` for a `float` parameter, and `0` or `1`
+becomes `false` or `true` for a `bool` parameter.  A quoted string stays
+a string, so `f "42"` does not satisfy an `int` parameter.  Command-line
+arguments are text, and are converted too (see
+<<_command_line_arguments>>).
+
 Error cases raise exceptions: an unknown name (`no such argument`), a type
 mismatch (`requires a int`), a missing required argument (`did not assign
-to`), and the colon-default syntax error noted above.
+to`), extra arguments without a rest parameter (`too many arguments`),
+and the syntax errors noted above.
 
 === Flags
 
@@ -590,6 +625,84 @@ run in.txt                    # run v false o out        file in.txt
 run -v in.txt                 # run v true  o out        file in.txt
 run -v -o result.txt in.txt   # run v true  o result.txt file in.txt
 ----
+
+=== Rest parameters
+
+A rest parameter, written `+NAME...+` as the last parameter, collects
+the positional arguments that no other parameter took into a list
+variable `NAME`.  The list is empty if there are none.
+
+----
+function f { x y z args... } {
+  print $x $y $z    # a b c
+  print $args       # [d,e,f]
+  print $#args      # 3
+}
+
+f a b c d e f
+----
+
+A typed rest parameter, as in `+ns:int...+`, type-checks each leftover
+argument.  A rest parameter written just `+...+` allows extra arguments
+without binding them to a name; they are still available through
+`+$@+` and `+$*+`.
+
+=== Positional arguments
+
+These read the positional arguments of the current function call:
+
+[cols="1,3"]
+|===
+| Name | Meaning
+
+| `+$0+`             | The function's name.
+| `+$1+`, `+$2+`, ... | The positional arguments, counting from 1.  A missing one raises an exception.
+| `++$+1++`          | `1` if `+$1+` exists, else `0`; never raises.
+| `+$#+`             | The number of positional arguments.
+| `+$@+`             | The positional arguments as one list.
+| `+$*+`             | The positional arguments as separate words (list expansion).
+|===
+
+Only positional arguments count: not flags, flag values, or `name=value`
+arguments.  They include the arguments bound to named parameters as
+well as any rest arguments:
+
+----
+function f { -v:bool=false x args... } {
+  print $1 $#       # a 3
+  print $@          # [a,b,c]
+  print $*          # a b c
+}
+
+f a -v b c
+----
+
+Unlike bash and zsh, `+$@+` is a single list value; use `+$*+` to pass
+the arguments on as separate words.  An `inplace` or `macro` call shares
+the arguments of the function that called it.  At script top level,
+these read the script's own arguments (see <<_command_line_arguments>>).
+
+=== shift
+
+`shift` drops the first positional argument, so that `+$1+` is the next
+one; `shift N` drops `N` of them.  It returns `true`, or `false` if
+fewer than `N` arguments were left, in which case it drops all of them.
+It changes only what `+$1+`, `+$@+`, `+$*+` and `+$#+` see:
+`$mcsh.argc` and `$mcsh.argv` stay the same.
+
+----
+function each { args... } {
+  loop while { $ $+1 } {
+    print item: $1
+    shift
+  }
+}
+
+each x y z          # item: x   item: y   item: z
+----
+
+In an `inplace` or `macro` call, `shift` acts on the arguments of the
+function that called it.
 
 == Command-line arguments
 
@@ -612,6 +725,36 @@ true false dog _ data
 that is: `-f` is present (true), `-g` defaults false, `-x` takes `dog`,
 `-y` defaults `_`, and the positional `z` defaults to `data`.
 
+The rules are the same as for function calls (see <<_signatures>> and
+<<_calling_conventions>>):
+
+* Arguments after the script name fill the positional parameters in
+  order; flags may appear anywhere among them.
+* A parameter with a default may be omitted.
+* Arguments are text, converted to the parameter's type: `42` becomes
+  an `int` for an `int` parameter, and `true`, `false`, `1` or `0` a
+  `bool` for a `bool` parameter.
+* A required parameter that is not given raises an exception
+  (`did not assign to: 'NAME'`).
+* An argument that cannot be converted raises an exception
+  (`requires a int, given a string`).
+* Extra positional arguments go to a rest parameter, which becomes a
+  global list.  Without one, they raise an exception
+  (`too many arguments`).
+
+One difference: `name=value` arguments are not recognized on the
+command line.  After the script name, `x=5` is an ordinary positional
+argument.  Before the script name, `KEY=VALUE` sets a global (see
+<<_run_a_script>>).
+
+The parameters become global variables.  At top level, `+$0+` is the
+script name, and `+$1+`, `+$@+`, `+$*+` and `+$#+` read the script's
+arguments (see <<_positional_arguments>>); `shift` works on them too.
+After `signature`, they see only the positional arguments, not the
+flags it consumed, and any earlier `shift` is undone.  The raw
+arguments are always available as `$mcsh.argc` and `$mcsh.argv` (see
+<<_magic_variables>>).
+
 == Magic variables
 
 These read-only variables are always available:
@@ -625,7 +768,7 @@ These read-only variables are always available:
 | `$random`     | A fresh pseudo-random integer on each read.
 | `$?`          | Exit code of the last external command.
 | `$PWD`        | Working directory (an environment variable).
-| `$mcsh.argc`  | Number of command-line arguments.
+| `$mcsh.argc`  | Number of command-line arguments, counting the script name: a script run with no arguments has `argc` 1.
 | `$mcsh.argv`  | List of command-line arguments; `(( get $mcsh.argv 0 ))` is the script name.
 |===
 
@@ -638,10 +781,7 @@ print $this
 == Experimental features
 
 The following are present in the test suite but not yet complete, and may
-change: `module { ... }` blocks, `class`/`extends` definitions, and the
-variadic accessors inside a function with a `...` parameter
-(`$args`, the positional accessors `$0`/`$1`/..., `$@` for all arguments as
-a list, and `$*` for the argument count).
+change: `module { ... }` blocks and `class`/`extends` definitions.
 
 == Example
 

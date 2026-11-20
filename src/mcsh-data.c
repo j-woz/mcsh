@@ -370,6 +370,8 @@ static bool arg_index(size_t index, context* ctx,
                       mcsh_value** output);
 static bool arg_all(context* ctx,
                     mcsh_value** output);
+static bool arg_exists(size_t index, context* ctx);
+static size_t arg_count(context* ctx);
 
 static inline bool is_glob(const char* token);
 static bool do_glob(context* ctx, const char* token,
@@ -401,21 +403,37 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     LOG(MCSH_LOG_DATA, MCSH_DEBUG,
         "to_value(): name:  '%s' type=%i", v.name, v.type);
     int64_t index;
+    // $+1: is there a positional argument 1?  Does not raise.
+    if (v.expander.type == EXPANDER_TEST && ! v.subscripted &&
+        is_integer(v.name, &index))
+    {
+      value = expand_test(arg_exists(index, ctx));
+      goto end;
+    }
     if (is_integer(v.name, &index))
     {
+      // $0 is the function or script name; $1, $2, ... the arguments
       arg_index(index, ctx, &value);
       PROPAGATE(ctx->status);
       rc = true;
     }
     else if (strcmp(v.name, "*") == 0)
     {
-      list_array* A = ctx->entry->args;
-      value = mcsh_value_new_int(A->size - 1);
+      // $*: the positional arguments as separate words
+      arg_all(ctx, &value);
+      value->word_split = true;
       rc = true;
     }
     else if (strcmp(v.name, "@") == 0)
     {
+      // $@: the positional arguments as one list
       arg_all(ctx, &value);
+      rc = true;
+    }
+    else if (strcmp(v.name, "#") == 0)
+    {
+      // $#: the number of positional arguments
+      value = mcsh_value_new_int(arg_count(ctx));
       rc = true;
     }
     else
@@ -488,29 +506,63 @@ to_value(context* ctx, const char* token, mcsh_value** output)
   return true;
 }
 
+/** Position in the argument list (see mcsh_args()) of $index, after
+    any shift.  $0, the function or script name, is never shifted. */
+static size_t
+arg_position(size_t index, mcsh_entry* owner)
+{
+  return (index == 0) ? 0 : index + owner->shift;
+}
+
+/** $index: a positional argument.  Raises if there is none. */
 static bool
 arg_index(size_t index, context* ctx,
           mcsh_value** output)
 {
-  int shift = ctx->entry->shift;
-  show("size: %zi", ctx->entry->args->size);
-  *output = ctx->entry->args->data[index+shift];
+  mcsh_entry* owner;
+  list_array* A = mcsh_args(ctx->entry, &owner);
+  RAISE_IF(A == NULL || arg_position(index, owner) >= A->size,
+           ctx->status, NULL, 0, "mcsh.undefined",
+           "no positional argument: $%zi", index);
+  *output = A->data[arg_position(index, owner)];
   return true;
 }
 
+/** $+index: true if positional argument index exists */
+static bool
+arg_exists(size_t index, context* ctx)
+{
+  mcsh_entry* owner;
+  list_array* A = mcsh_args(ctx->entry, &owner);
+  return A != NULL && arg_position(index, owner) < A->size;
+}
+
+/** $#: the number of positional arguments left after any shift */
+static size_t
+arg_count(context* ctx)
+{
+  mcsh_entry* owner;
+  list_array* A = mcsh_args(ctx->entry, &owner);
+  if (A == NULL) return 0;
+  size_t start = 1 + owner->shift;
+  return (start >= A->size) ? 0 : A->size - start;
+}
+
+/** $@ (and $*): a new list of the positional arguments left after
+    any shift */
 static bool
 arg_all(context* ctx, mcsh_value** output)
 {
   mcsh_logger* logger = &ctx->entry->module->vm->logger;
   LOG(MCSH_LOG_DATA, MCSH_DEBUG, "arg_all()");
-  int shift = ctx->entry->shift;
-  list_array* A = ctx->entry->args;
-  size_t n = A->size - 1 - shift;
-  printf("n: %zi\n", n);
+  mcsh_entry* owner;
+  list_array* A = mcsh_args(ctx->entry, &owner);
+  size_t n = arg_count(ctx);
   mcsh_value* result =
     mcsh_value_new_list_sized(ctx->entry->stack->vm, n);
-  for (size_t index = shift + 1; index < A->size; index++)
-    list_array_add(result->list, A->data[index]);
+  if (A != NULL)
+    for (size_t index = 1 + owner->shift; index < A->size; index++)
+      list_array_add(result->list, A->data[index]);
   *output = result;
   return true;
 }

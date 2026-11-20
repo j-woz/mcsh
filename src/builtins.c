@@ -932,9 +932,71 @@ builtin_signature(mcsh_bb* bb)
     }
     link_to_global(module, name, global);
   }
+
+  // A named rest parameter becomes a global list of the leftovers
+  if (sg.rest != NULL)
+  {
+    mcsh_value* rest = mcsh_rest_list(vm, &P);
+    mcsh_value* old;
+    table_set(&module->vm->globals, sg.rest, rest, (void*) &old);
+    link_to_global(module, sg.rest, rest);
+  }
+
+  // From now on $1, $@ and $* see only the positional arguments, not
+  // the flags that signature consumed.  Any earlier shift is reset.
+  mcsh_entry* me = mcsh_entry_module(vm->stack.current);
+  if (me != NULL)
+  {
+    const char* script =
+      (vm->argv != NULL && vm->argv[0] != NULL) ? vm->argv[0] : "";
+    list_array* MA = list_array_construct(P.positional.size + 1);
+    list_array_add(MA, mcsh_value_new_string(vm, script));
+    for (size_t k = 0; k < P.positional.size; k++)
+      list_array_add(MA, P.positional.data[k]);
+    // Frees the old list only; the module owns it
+    if (me->args != NULL) list_array_free(me->args);
+    me->args  = MA;
+    me->shift = 0;
+  }
+
   maybe_assign(bb->output, &mcsh_null);
   list_array_finalize(&args);
   list_array_finalize(&A);
+  return true;
+}
+
+static bool
+builtin_shift(mcsh_bb* bb)
+/** shift [N]: drop the first N positional arguments (default 1), so
+    that $1 is the next one.  Returns true, or false if fewer than N
+    were left; then it drops all of them.  Only the shift counter of
+    the owning frame or module changes, not argc or argv. */
+{
+  RAISE_IF(bb->args->size > 2, bb->status, NULL, 0,
+           "mcsh.invalid_arguments",
+           "shift: takes at most 1 argument, given %zi",
+           bb->args->size - 1);
+  int64_t n = 1;
+  if (bb->args->size == 2)
+  {
+    mcsh_value* v = bb->args->data[1];
+    mcsh_resolve(v);
+    RAISE_IF(!mcsh_value_integer(v, &n) || n < 0,
+             bb->status, NULL, 0, "mcsh.invalid_arguments",
+             "shift: N must be a non-negative integer");
+  }
+
+  mcsh_entry* owner;
+  list_array* A = mcsh_args(bb->module->vm->stack.current, &owner);
+  int64_t left = 0;
+  if (A != NULL)
+    left = (int64_t) A->size - 1 - owner->shift;
+  if (left < 0) left = 0;
+
+  bool ok = (n <= left);
+  if (A != NULL)
+    owner->shift += (int) (ok ? n : left);
+  maybe_assign(bb->output, mcsh_value_new_bool(ok));
   return true;
 }
 
@@ -1717,6 +1779,7 @@ builtins_add()
   table_add(mcsh.builtins, "global",    builtin_global);
   table_add(mcsh.builtins, "public",    builtin_public);
   table_add(mcsh.builtins, "signature", builtin_signature);
+  table_add(mcsh.builtins, "shift",     builtin_shift);
   table_add(mcsh.builtins, "function",  builtin_function);
   table_add(mcsh.builtins, "inplace",   builtin_function);
   table_add(mcsh.builtins, "macro",     builtin_function);

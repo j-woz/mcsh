@@ -80,3 +80,76 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
   14:48:10 and first works in a buildable tree at `c323cec`, 14:50:17.
 * Scratch kept in `bisect-tmp/` (skips.log, build-logs/, run.log).
 * `test/script/3207-attach-call.mc` is a new test, not yet in git.
+
+== 2026-11-19 14:31:37
+
+=== Plan for rest parameters and the argument accessors
+
+* Tests 5200 and 5201 now specify `NAME...` as the last parameter.  It
+  binds `NAME` to the leftover positional arguments: in 5200,
+  `args` is `[d,e,f]` and `$#args` is 3.
+* `$@` is one list of all the arguments (`[a,b,c,d,e,f]` in 5200).
+* `$*` expands to all the arguments as separate words
+  (`a b c d e f`), by list expansion.  The interpreter returns the
+  argument count today.  The existing `word_split` flag, used by glob
+  results, should do the flattening.
+* `$1`, `$2`, ... count all the arguments from 1.  `$0` is not settled.
+* 5201 still expects `arg count 3` from `$*`, which contradicts the
+  above.  Waiting for a decision.
+* There is no `shift` builtin; `entry->shift` is unused and always 0.
+* README.adoc.m4 now documents the existing argument handling and marks
+  rest parameters as planned.  Regenerated with `./mk-doc.sh` only.
+  PDF builds were dropped at the user's request.
+
+== 2026-11-19 14:41:25
+
+=== Decisions on argument accessors, shift, typed rest
+
+* 5201 now expects `args A B C` from `$*`.  `$0` is the function
+  name.
+* `$@`, `$*` and `$N` report only the positional arguments, not
+  flags or `name=value` arguments.
+* At script top level they must work, reading the vm's argc and argv.
+* New test 5211 needs a `shift` builtin: `$1` is `x`, then `y`.
+  The unused `entry->shift` field looks meant for this.
+* New test 5204: `signature A:int...` with `1 2 x 4` must raise an
+  exception.  A rest parameter may be typed and each rest argument is
+  type-checked.
+* Found: the harness only knows the colon forms of `TEST:ARGS_SCRIPT:`
+  and `TEST:EXPECT:`.  5204 and 5211 use `TEST:ARGS` and
+  `TEST:EXPECT` without a colon, so the harness ignores them.
+* Found: command-line arguments are strings and are never converted to
+  the declared type, so `x:int` fails even for 42.  That is why
+  3204-signature-4 is marked TEST:FAIL.
+
+== 2026-11-19 18:19:14
+
+=== Rest parameters, positional accessors, shift: implemented
+
+* Signatures: `NAME...`, `NAME:TYPE...` and bare `...` as the last
+  parameter, in both parsers.  Misplaced, defaulted, flag-prefixed or
+  duplicate rest parameters, and unknown type names, raise
+  `mcsh.syntax_error`.  Removed the dead `mcsh_signature_init_block`.
+* Binding: command-line text is converted to the slot type (int,
+  float, bool true/false/0/1); in calls, int converts to float and
+  0/1 to bool.  Rest arguments are type-checked.  Too many arguments
+  raises `mcsh.invalid_arguments` instead of a hard exit.
+* `$0` function or script name; `$N` (raises if missing); `$+N`;
+  `$#` count; `$@` list; `$*` word-split.  Positional only: not
+  flags, flag values or name=value.  At top level they read the vm's
+  argv; after `signature`, only the positional remainder.  Inplace
+  and macro calls share the caller's arguments.
+* New `shift [N]` builtin: returns true, or false after dropping all
+  if fewer than N remain.  Only the shift counter changes.
+* Fixed: on a binding error the call no longer leaves the stack in the
+  callee's frame.
+* Tests: un-skipped 5200 and 5201; 3204-signature-4 now passes; new
+  5203, 5205-5210, 5212-5214; EXPECT lines added to 5204 and 3203.
+  The four named-args/arg-extras unit tests had a backwards status
+  assertion on an uninitialized status; fixed.
+* README.adoc.m4 updated and regenerated with `./mk-doc.sh`.
+* Not run locally: the full suite; it runs on GitHub.
+* Found: `$?` is always 0.  `vm->exit_code_last` is set to 0 at
+  startup and never updated, so the README claim that it is the last
+  external command's exit code is wrong.  Only 5202 uses it, with no
+  EXPECT.

@@ -156,8 +156,15 @@ typedef struct
 struct mcsh_signature_s
 {
   uint16_t   count;
-  /// Are extra arguments allowed (...) ?
+  /// Are extra arguments allowed (a rest parameter, written NAME...
+  /// or just ...) ?
   bool       extras;
+  /// Name of the rest parameter, or NULL if it is anonymous (...)
+  /// or if there is none.
+  char*      rest;
+  /// Type that each rest argument must have; MCSH_VALUE_ANY if
+  /// untyped.  Written NAME:TYPE...
+  mcsh_value_type rest_type;
   mcsh_slot* slots;
 };
 
@@ -318,6 +325,9 @@ typedef struct
   // May be NULL:
   mcsh_value* name;
   mcsh_value* value;
+  /// True if value is text from the command line: it is converted to
+  /// the type of the parameter it is bound to (int, float or bool).
+  bool        text;
 } mcsh_arg;
 
 static inline void
@@ -325,6 +335,7 @@ mcsh_arg_init(mcsh_arg* arg, mcsh_value* name, mcsh_value* value)
 {
   arg->name  = name;
   arg->value = value;
+  arg->text  = false;
 }
 
 void mcsh_value_grab(mcsh_logger* logger, mcsh_value* value);
@@ -344,6 +355,10 @@ typedef struct
   mcsh_value** values;
   list_array   extra_names;
   list_array   extra_values;
+  /// The positional arguments in call order, as bound: not flags or
+  /// name=value arguments.  List of mcsh_value*.  This is what $1,
+  /// $@ and $* report.
+  list_array   positional;
 } mcsh_parameters;
 
 /**
@@ -663,6 +678,23 @@ bool mcsh_stack_search(mcsh_logger* logger,
 void mcsh_entry_init_module(mcsh_entry* entry,
                             mcsh_module* module,
                             mcsh_entry* parent);
+
+/** The positional arguments seen from entry, as used by $0, $1, $@,
+    $* and shift.  Element 0 is the function or script name; the rest
+    are the positional arguments.  They belong to the nearest function
+    frame or module: an inplace or macro call shares its caller's.  At
+    module level the list is built on first use from the vm's argv.
+    owner (may be NULL) receives that frame or module entry, whose
+    shift counter says how many arguments have been shifted off.
+    Returns NULL if there are no arguments. */
+list_array* mcsh_args(mcsh_entry* entry, mcsh_entry** owner);
+
+/** The module entry that entry runs in (its nearest module ancestor) */
+mcsh_entry* mcsh_entry_module(mcsh_entry* entry);
+
+/** A new list value holding P's extra arguments: the value of a
+    rest parameter NAME... */
+mcsh_value* mcsh_rest_list(mcsh_vm* vm, mcsh_parameters* P);
 
 bool mcsh_module_parse(const char* source,
                        const char* name,

@@ -39,11 +39,14 @@ main()
   list_array_add (&L, &y);
   list_array_add (&L, &q);
 
+  // mcsh_parameterize() changes status only on an error:
   mcsh_status status;
+  mcsh_status_init(&status);
+  status.code = MCSH_OK;
   mcsh_parameters P;
   mcsh_parameterize(&sg, &L, &P, &status);
 
-  valgrind_assert(status.code != MCSH_OK);
+  valgrind_assert(status.code == MCSH_OK);
 
   mcsh_parameters_print(&P);
 

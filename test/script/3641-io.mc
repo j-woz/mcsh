@@ -3,5 +3,5 @@
 >> $fp HELLO
 close $fp
 
-# TEST:POST grep -q HELLO f.txt
-# TEST:POST rm f.txt
+# TEST:POST: grep -q HELLO f.txt
+# TEST:POST: rm f.txt
