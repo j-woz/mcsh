@@ -355,3 +355,16 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
 * Uncommitted: `src/util.h`, `src/mcsh.c`, `src/mcsh-data.c`, this file.
   Suggested: `git add src/util.h src/mcsh.c src/mcsh-data.c
   Claude-Transcript.adoc`, then commit and push.
+
+== 2026-11-22 13:44:32
+
+=== Removed _GNU_SOURCE from mcsh-data.c
+
+* The define was only for strchrnul(), which is now mcsh_strchrnul().
+* The rest of the file uses POSIX calls only (glob, GLOB_ERR/GLOB_MARK,
+  regcomp, REG_*), so nothing else needed it.
+* CI-style gcc build (--disable-readline) in a worktree under the repo:
+  exit 0.  The 8 warning lines are yacc (-Wyacc) notices from the
+  grammars; no compiler warnings in the C sources.
+* Uncommitted: src/mcsh-data.c, this file.  Suggested:
+  git add src/mcsh-data.c Claude-Transcript.adoc

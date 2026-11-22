@@ -3,7 +3,6 @@
    MCSH DATA
 */
 
-#define _GNU_SOURCE  // for strchrnul()
 #include <assert.h>
 #include <glob.h>
 #include <regex.h>
