@@ -166,7 +166,7 @@ mcsh_drop_variable(mcsh_module* module,
     {
       if (strmap_search_index(&entry->module->vars, name, &index))
       {
-        printf("stack_search(): %zi:%zi found:  '%s'\n",
+        printf("stack_search(): %"PRId64":%"PRIu64" found:  '%s'\n",
                entry->depth, entry->id, name);
         goto found;
       }
@@ -214,7 +214,7 @@ mcsh_stack_print_entry(mcsh_module* module, mcsh_entry* entry)
 {
   if (entry->parent != NULL)
     mcsh_stack_print_entry(module, entry->parent);
-  printf("entry: %zi:%zi\n", entry->depth, entry->id);
+  printf("entry: %"PRId64":%"PRIu64"\n", entry->depth, entry->id);
   strmap_show_text(&entry->vars);
   printf("\n");
 }
@@ -794,7 +794,8 @@ parse_contig(context* ctx, subscript* ss, const char* spec)
   do
   {
     // MIXING UP SPEC AND PARSED SUBSCRIPT
-    char* q = strchrnul(p, ',');
+    char* q = strchr(p, ',');
+    if (q == NULL) q = (char*) p + strlen(p);
     if (q == end) done = true;
     const char* colon = strchr(p, ':');
     // Colon not found or colon in next contig: single value
