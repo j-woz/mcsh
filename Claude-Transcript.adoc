@@ -273,3 +273,16 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
 * Verified with this (readline) build; the pattern rejects the
   "readline no" line a --disable-readline build prints.
 * Removed the ci-build/ worktree.
+
+== 2026-11-22 13:18:59
+
+=== CI matrix: macos-15 added
+
+* `.github/workflows/tests.yaml` matrix now runs `ubuntu-latest` and
+  `macos-15`.  Nothing else in the job changed.
+* `install-zsh.sh` only knows apt, so it now exits 0 early on Darwin
+  ("zsh preinstalled on macOS").  Without this the macOS job would
+  print "install-zsh: FAILED!" although zsh is present.
+* Not yet pushed or run.  Unknown whether the macOS build passes:
+  possible trouble with -Werror, the readline/libm link flags, or the
+  --disable-readline configure on macOS.

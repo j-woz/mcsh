@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# macOS runners already ship with zsh; apt is only for Debian/Ubuntu.
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "install-zsh: zsh preinstalled on macOS"
+  exit 0
+fi
+
 if ( {
      sudo apt-get update         2>&1
      sudo apt-get install -y zsh 2>&1
