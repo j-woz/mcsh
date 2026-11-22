@@ -368,3 +368,18 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
   grammars; no compiler warnings in the C sources.
 * Uncommitted: src/mcsh-data.c, this file.  Suggested:
   git add src/mcsh-data.c Claude-Transcript.adoc
+
+== 2026-11-22 13:48:38
+
+=== macOS CI: test step needs GNU timeout
+
+* Run 45062371156 and 45062504968 (`_GNU_SOURCE` removal): macOS builds
+  now, then fails in the Tests step with `timeout: command not found`.
+  Ubuntu was cancelled by the matrix after the macOS failure.
+* Fix in `.github/workflows/tests.yaml`: `coreutils` added to the
+  Homebrew install; the Tests step runs `gtimeout` on macOS and
+  `timeout` elsewhere (checked with `$RUNNER_OS`).
+* README "Building and testing" updated and regenerated.
+* Not yet run on GitHub.  Uncommitted: .github/workflows/tests.yaml,
+  README.adoc.m4, README.adoc, this file.  Suggested:
+  git add .github/workflows/tests.yaml README.adoc.m4 README.adoc Claude-Transcript.adoc
