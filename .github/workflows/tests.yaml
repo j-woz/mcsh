@@ -39,7 +39,7 @@ jobs:
       - name: Install build tools (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install autoconf automake libtool flex bison
+          brew install autoconf automake libtool flex bison coreutils
           # Homebrew's flex and bison are keg-only; the system ones are too old.
           echo "$(brew --prefix flex)/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
@@ -62,4 +62,10 @@ jobs:
 
       - name: Tests
         run: |
-          timeout 1h test/script/test-all.zsh
+          # Homebrew's coreutils provides gtimeout on macOS.
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            TIMEOUT=gtimeout
+          else
+            TIMEOUT=timeout
+          fi
+          $TIMEOUT 1h test/script/test-all.zsh
