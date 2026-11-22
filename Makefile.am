@@ -4,6 +4,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 SUFFIXES = .c .h .y .l
 
 AM_CPPFLAGS = -I . -I src
+# For mcsh -B: the compiler flags set below
+AM_CPPFLAGS += -DMCSH_BUILD_AM_CFLAGS='"$(AM_CFLAGS)"'
 # Provide -O0 at configure time
 AM_CFLAGS = -std=gnu2x -Wall -Wno-unused-function -g -Werror -fdiagnostics-color=always -Wshadow
 # -pedantic

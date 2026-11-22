@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "config.h"
 #include "strlcpyj.h"
 
 #include "lookup.h"
@@ -19,6 +20,7 @@
 #include "mcsh.h"
 #include "exceptions.h"
 #include "builtins.h"
+#include "mcsh-iface.h"
 #include "mcsh-sys.h"
 
 #include "mcsh-expr-parser.h"
@@ -89,8 +91,55 @@ mcsh_help()
 {
   printf("mcsh: usage:                        \n"
          "      -h         help               \n"
+         "      -B         build information  \n"
          "      -c CMD     run command string \n"
          );
+}
+
+// Build information comes from config.h (configure.ac) and from
+// AM_CFLAGS (Makefile.am):
+#ifndef MCSH_BUILD_CONFIGURE_DATE
+#error "config.h has no build information: run ./configure again"
+#endif
+#ifndef MCSH_BUILD_AM_CFLAGS
+#define MCSH_BUILD_AM_CFLAGS "unknown"
+#endif
+
+static void
+build_line(const char* label, const char* value)
+{
+  printf("  %-16s %s\n", label, value[0] != '\0' ? value : "(none)");
+}
+
+/** mcsh -B: report how this mcsh was configured and built */
+static void
+mcsh_build_info(void)
+{
+  const char* rl = mcsh_iface_readline_version();
+  printf("%s build information:\n", PACKAGE_STRING);
+  build_line("configured",     MCSH_BUILD_CONFIGURE_DATE);
+  build_line("compiled",       __DATE__ " " __TIME__);
+  build_line("git commit",     MCSH_BUILD_GIT " (when configured)");
+  build_line("configure args", MCSH_BUILD_CONFIGURE_ARGS);
+  build_line("prefix",         MCSH_BUILD_PREFIX);
+  build_line("host",           MCSH_BUILD_HOST);
+  build_line("C compiler",     MCSH_BUILD_CC);
+  build_line("  version",      MCSH_BUILD_CC_VERSION);
+  build_line("CPPFLAGS",       MCSH_BUILD_CPPFLAGS);
+  build_line("CFLAGS",         MCSH_BUILD_CFLAGS);
+  build_line("AM_CFLAGS",      MCSH_BUILD_AM_CFLAGS);
+  build_line("LDFLAGS",        MCSH_BUILD_LDFLAGS);
+  build_line("LIBS",           MCSH_BUILD_LIBS);
+  build_line("lexer",          MCSH_BUILD_LEX);
+  build_line("parser",         MCSH_BUILD_YACC);
+  build_line("readline",       rl != NULL ? "yes" : "no");
+  build_line("  configure",    MCSH_BUILD_READLINE);
+  build_line("  library",      rl != NULL ? rl : "none");
+#ifdef HAVE_READLINE_HISTORY
+  build_line("  history",      "yes");
+#else
+  build_line("  history",      "no");
+#endif
 }
 
 void
@@ -132,12 +181,15 @@ mcsh_parse_options(unsigned int argc, char* argv[],
   {
     // Leading '+': stop at the first non-option (the script name) so that
     // flags meant for the script (e.g. -f -x) are passed through untouched.
-    int c = getopt(argc, argv, "+c:h");
+    int c = getopt(argc, argv, "+Bc:h");
     if (c == -1) break;
     switch (c)
     {
       case 'h':
         mcsh_help();
+        exit(EXIT_SUCCESS);
+      case 'B':
+        mcsh_build_info();
         exit(EXIT_SUCCESS);
       case 'c':
         list_array_add(&cmd_tmp, strdup(optarg));

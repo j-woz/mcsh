@@ -67,6 +67,28 @@ print DIR: $DIR
 $ mcsh
 ----
 
+=== Build information
+
+`mcsh -B` reports how this `mcsh` was configured and built, then
+exits.  The report covers when `configure` ran and the arguments it
+was given, the git commit at that time, when `mcsh` was compiled, the
+host, the C compiler and its version, the compiler and linker flags
+(`CPPFLAGS`, `CFLAGS`, `AM_CFLAGS`, `LDFLAGS`, `LIBS`), the lexer and
+parser generators, and whether readline and its history support are
+included, with the readline library version.
+
+----
+$ mcsh -B
+MCSH 0.0 build information:
+  configured       2026-11-22 13:07:21
+  compiled         Nov 22 2026 13:07:23
+  ...
+  readline         yes
+    configure      requested yes, found -lreadline
+    library        8.3
+    history        yes
+----
+
 == Lexical structure
 
 === Statements

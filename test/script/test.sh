@@ -83,6 +83,19 @@ then
   TEST_FAIL=1
 fi
 
+# TEST:UI: run an interactive session instead; see test-ui.sh
+TEST_UI=0
+if grep -q "TEST:UI" $TEST
+then
+  if ! $THIS/test-ui.sh --available
+  then
+    if (( VERBOSITY >= 1 )) print "TEST_SKIP: $TEST (no readline)"
+    return
+  fi
+  if (( VERBOSITY >= 2 )) print "TEST_UI=1"
+  TEST_UI=1
+fi
+
 # Arguments passed to mcsh (before the user script)
 TEST_ARGS_MCSH=""
 if grep -q "TEST:ARGS_MCSH:" $TEST
@@ -129,7 +142,14 @@ then
   $=CMD_PRE
 fi
 
-if $VG bin/mcsh $TEST_ARGS_MCSH $TEST $=TEST_ARGS_SCRIPT ${*} output
+if (( TEST_UI ))
+then
+  RUN=( $THIS/test-ui.sh $TEST $TEST_ARGS_MCSH )
+else
+  RUN=( $VG bin/mcsh $TEST_ARGS_MCSH $TEST $=TEST_ARGS_SCRIPT ${*} )
+fi
+
+if $RUN output
 then
   if (( ! TEST_FAIL )) SUCCESS=1
 else

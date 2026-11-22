@@ -65,6 +65,16 @@ iface_init(void)
 #endif
 }
 
+const char*
+mcsh_iface_readline_version(void)
+{
+#ifdef HAVE_LIBREADLINE
+  return rl_library_version;
+#else
+  return NULL;
+#endif
+}
+
 bool
 mcsh_iface_get(const char* prompt, char** line)
 {

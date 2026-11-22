@@ -181,3 +181,95 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
   reference.  The signature rest list global now takes one too.
 * New tests 0905-default-env, 0906-default-global,
   0907-default-pairs, 0908-default-bad.  README updated.
+
+== 2026-11-20 11:42:35
+
+=== TEST:UI: interactive tests
+
+* test.sh: a test containing `TEST:UI` is dispatched to the new
+  test/script/test-ui.sh instead of running a script.
+* test-ui.sh runs `bin/mcsh` (no script: interactive mode) under a
+  pseudo-terminal with `script -q -e --echo never`, types the test
+  file in line by line, and prints the session through `cat -v`, so
+  TEST:EXPECT: can match ^[ (ESC) and ^M (CR).  TERM=xterm and
+  INPUTRC=/dev/null are fixed: with TERM=dumb or unset there are no
+  escape codes and no line breaks.  No valgrind: vg.sh pipes output.
+* 0005i-exit checks the default prompt as readline renders it:
+  `^[[?2004hmcsh> ^[[?2004l^M^M` (bracketed paste on, prompt,
+  bracketed paste off with CR, then the CR of the newline).
+* Checked that an expectation matching only the typed input fails,
+  so input is not echoed.
+* Problem: the GitHub workflow configures with --disable-readline, so
+  CI's mcsh uses the plain prompt (printf + fgets) and 0005i-exit will
+  fail there.  Decision pending.
+
+== 2026-11-20 11:48:28
+
+=== GitHub build failure: fixed
+
+* Every GitHub run since 1d9127a (2026-09-28) failed at "Make mcsh";
+  the last success was 45a5a9a (2026-09-26).  So CI's test step has
+  not run since then.
+* Logs cannot be downloaded with this gh login (403, needs admin), so
+  the CI build was reproduced in a worktree, ci-build/: ./bootstrap,
+  ./configure --disable-readline, make bin/mcsh.
+* Cause: `mcsh_value* result;` in mcsh_expr_eval_op (added by
+  1d9127a) trips -Werror=maybe-uninitialized.  CI compiles with
+  configure's default -O2; the local tree uses -O0, where gcc does not
+  make this check.  A false positive: every branch sets result.
+* Fix (uncommitted): initialize it to NULL in src/mcsh.c.  With that,
+  the CI-configured build of the working tree succeeds and
+  `bin/mcsh -h` runs.
+
+== 2026-11-22 13:00:37
+
+=== TEST:UI decision: skip when readline is missing
+
+* test-ui.sh --available succeeds only if config.h has
+  `#define HAVE_LIBREADLINE` (the switch the C code uses).
+* test.sh: for a TEST:UI test, if that fails, print
+  `TEST_SKIP: ... (no readline)` (unless -q) and return success,
+  like TEST:SKIP.  So GitHub, which builds --disable-readline, skips
+  0005i-exit instead of failing it.
+* Verified: with readline 0005i-exit runs and passes; in ci-build/
+  (configured --disable-readline) it is skipped, exit 0, no .out.
+* Also: GitHub is green again with the user's commit b1077fb
+  ("Initialize variable", the same one-line fix); the local repo is
+  one commit behind with an equivalent uncommitted edit.
+
+== 2026-11-22 13:09:30
+
+=== mcsh -B: build information
+
+* New flag `mcsh -B` (also `mcc -B`, which shares the option
+  parser): prints configure date and arguments, git commit at
+  configure time, compile date, host, compiler and version,
+  CPPFLAGS/CFLAGS/AM_CFLAGS/LDFLAGS/LIBS, lexer and parser generator
+  versions, and readline (yes/no, how configured, library version,
+  history), then exits.  Listed in `mcsh -h`.
+* configure.ac records the values in config.h as MCSH_BUILD_* strings;
+  Makefile.am passes AM_CFLAGS as MCSH_BUILD_AM_CFLAGS;
+  mcsh-iface.c reports rl_library_version.
+* Without --prefix, the prefix is reported as "/usr/local (default)",
+  not configure's placeholder NONE.
+* Found: the local build tree's `missing` was a dangling symlink to
+  /usr/share/automake-1.16/ (automake is now 1.18), so automake's
+  rebuild rules failed.  Fixed by rerunning ./bootstrap and configure
+  with the recorded options:
+  --config-cache --prefix=/home/woz/sfw/mcsh --enable-readline
+  CFLAGS=-O0.
+* Verified: readline -O0 build and a CI-like --disable-readline -O2
+  build (ci-build/) both compile and report correctly.  New test
+  0006-build-info (uses TEST:ARGS_MCSH: -B).  README updated.
+
+== 2026-11-22 13:11:34
+
+=== test-ui.sh --available uses mcsh -B
+
+* The readline check now asks the binary (the "readline yes" line of
+  `bin/mcsh -B`) instead of reading config.h, so it reflects the mcsh
+  that will run.  Output is captured before grep to avoid a SIGPIPE
+  failure under PIPE_FAIL.
+* Verified with this (readline) build; the pattern rejects the
+  "readline no" line a --disable-readline build prints.
+* Removed the ci-build/ worktree.

@@ -95,5 +95,66 @@ then
   fi
 fi
 
+# Build information for 'mcsh -B', recorded in config.h as strings.
+# mcsh_esc: escape backslashes and double quotes for a C string
+mcsh_esc()
+{
+  printf '%s' "$1" | sed 's/[[\\"]]/\\&/g'
+}
+# mcsh_version: first line of 'PROGRAM --version', or unknown
+mcsh_version()
+{
+  mcsh_v=$($1 --version 2>/dev/null | head -n 1)
+  printf '%s' "${mcsh_v:-unknown}"
+}
+mcsh_b_date=$(date '+%Y-%m-%d %H:%M:%S')
+mcsh_b_args=$(mcsh_esc "$(printf '%s' "$ac_configure_args" | sed 's/^ *//')")
+mcsh_b_git=$(cd "$srcdir" && git describe --always --dirty 2>/dev/null)
+mcsh_b_host=$(mcsh_esc "$(uname -srm)")
+mcsh_b_prefix=$(mcsh_esc "$prefix")
+# Without --prefix, configure has prefix=NONE until later; report
+# the default that will be used:
+if test "x$prefix" = xNONE
+then
+  mcsh_b_prefix="$ac_default_prefix (default)"
+fi
+mcsh_b_cc=$(mcsh_esc "$CC")
+mcsh_b_cc_version=$(mcsh_esc "$(mcsh_version "$CC")")
+mcsh_b_cppflags=$(mcsh_esc "$CPPFLAGS")
+mcsh_b_cflags=$(mcsh_esc "$CFLAGS")
+mcsh_b_ldflags=$(mcsh_esc "$LDFLAGS")
+mcsh_b_libs=$(mcsh_esc "$LIBS")
+mcsh_b_lex=$(mcsh_esc "$LEX: $(mcsh_version "$LEX")")
+mcsh_b_yacc=$(mcsh_esc "$YACC: $(mcsh_version "$YACC")")
+mcsh_b_readline="requested $with_readline, found ${ax_cv_lib_readline:-no}"
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CONFIGURE_DATE], ["$mcsh_b_date"],
+                   [mcsh -B: when configure ran])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CONFIGURE_ARGS], ["$mcsh_b_args"],
+                   [mcsh -B: arguments given to configure])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_GIT], ["${mcsh_b_git:-unknown}"],
+                   [mcsh -B: git commit when configure ran])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_HOST], ["$mcsh_b_host"],
+                   [mcsh -B: system that ran configure])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_PREFIX], ["$mcsh_b_prefix"],
+                   [mcsh -B: installation prefix])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CC], ["$mcsh_b_cc"],
+                   [mcsh -B: C compiler])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CC_VERSION], ["$mcsh_b_cc_version"],
+                   [mcsh -B: C compiler version])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CPPFLAGS], ["$mcsh_b_cppflags"],
+                   [mcsh -B: CPPFLAGS])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_CFLAGS], ["$mcsh_b_cflags"],
+                   [mcsh -B: CFLAGS])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_LDFLAGS], ["$mcsh_b_ldflags"],
+                   [mcsh -B: LDFLAGS])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_LIBS], ["$mcsh_b_libs"],
+                   [mcsh -B: LIBS])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_LEX], ["$mcsh_b_lex"],
+                   [mcsh -B: lexer generator and version])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_YACC], ["$mcsh_b_yacc"],
+                   [mcsh -B: parser generator and version])
+AC_DEFINE_UNQUOTED([MCSH_BUILD_READLINE], ["$mcsh_b_readline"],
+                   [mcsh -B: readline as requested and found])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
