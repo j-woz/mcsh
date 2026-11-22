@@ -2407,7 +2407,7 @@ do_token(mcsh_logger* logger, mcsh_module* module,
          mcsh_thing* token, list_array* values,
          mcsh_status* status)
 {
-  bool rc;
+  bool rc = true;  // only the TOKEN case sets it; others report via status
   mcsh_value* value;
   mcsh_stmts* stmts;
   switch (token->type)
