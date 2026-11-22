@@ -10,7 +10,8 @@ setopt PIPE_FAIL
 # --available succeeds only if mcsh was built with readline, which
 # TEST:UI tests expect; without it the prompt is printed plainly.
 # It asks the binary itself, via the "readline" line of mcsh -B.
-# Prints the session through cat -v, so non-printing characters appear
+
+# Filters the session through cat -v, so non-printing characters appear
 # as ^[ (ESC), ^M (CR), etc., and TEST:EXPECT: lines can match them.
 # Returns mcsh's exit code, or 124 if the session runs too long.
 #
