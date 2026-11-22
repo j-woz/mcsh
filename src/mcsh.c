@@ -4,6 +4,7 @@
 */
 
 #define _GNU_SOURCE // for asprintf(), vasprintf()
+#include <alloca.h>
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -1485,7 +1486,7 @@ mcsh_value_debug(mcsh_value* value)
       sprintf(v, "%"PRId64, value->integer);
       break;
     case MCSH_VALUE_LIST:
-      sprintf(v, "[%"PRId64"]", list_array_size(value->list));
+      sprintf(v, "[%zu]", list_array_size(value->list));
       break;
     case MCSH_VALUE_TABLE:
       sprintf(v, "[%i]", mcsh_table_size(value));
@@ -1713,7 +1714,8 @@ static bool
 sg_parse_rest(mcsh_signature* signature, const char* text,
               mcsh_status* status)
 {
-  char* t = strdupa(text);
+  char* t = alloca(strlen(text) + 1);
+  strcpy(t, text);
   t[strlen(t) - 3] = '\0';  // remove the "..."
   signature->extras    = true;
   signature->rest      = NULL;
@@ -1971,7 +1973,8 @@ sg_parse_string(mcsh_module* module,
                 const char* dflt_text,
                 mcsh_status* status)
 {
-  char* t = strdupa(text);
+  char* t = alloca(strlen(text) + 1);
+  strcpy(t, text);
   mcsh_value* dflt = NULL;
   mcsh_value_type type = MCSH_VALUE_ANY;
 
@@ -1987,7 +1990,9 @@ sg_parse_string(mcsh_module* module,
   char* c1 = strchr(t, ':');
   if (c1 != NULL)
   {
-    char* c2 = strchrnul(c1+1, ':');
+    // t is our writable copy, so the cast is safe; c2 is written
+    // below.
+    char* c2 = (char*) mcsh_strchrnul(c1+1, ':');
 
     // A default must be written with '=', not a second ':'.
     if (*c2 != '\0')
@@ -2403,7 +2408,8 @@ do_token(mcsh_logger* logger, mcsh_module* module,
          mcsh_thing* token, list_array* values,
          mcsh_status* status)
 {
-  bool rc;
+  // Only the TOKEN case sets rc; the others report through status.
+  bool rc = true;
   mcsh_value* value;
   mcsh_stmts* stmts;
   switch (token->type)
@@ -2592,7 +2598,7 @@ mcsh_stack_search(mcsh_logger* logger,
         goto loop;
     if (strmap_search(&entry->vars, name, (void**) result))
     {
-      /* printf("stack_search(): %zi:%zi found:  '%s'\n", */
+      /* printf("stack_search(): %"PRId64":%"PRIu64" found:  '%s'\n", */
       /*        entry->depth, entry->id, name); */
       goto found;
     }
@@ -2600,7 +2606,7 @@ mcsh_stack_search(mcsh_logger* logger,
     {
       if (strmap_search(&entry->module->vars, name, (void**) result))
       {
-        printf("stack_search(): %zi:%zi found:  '%s'\n",
+        printf("stack_search(): %"PRId64":%"PRIu64" found:  '%s'\n",
                entry->depth, entry->id, name);
         goto found;
       }
@@ -3049,11 +3055,13 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
       break;
     case MCSH_FN_INPLACE:
       mcsh_entry_init_scope(entry, module->vm->stack.current);
-      printf("call(): scope: %zi:%zi\n", entry->depth, entry->id);
+      printf("call(): scope: %"PRId64":%"PRIu64"\n",
+             entry->depth, entry->id);
       break;
     case MCSH_FN_MACRO:
       mcsh_entry_init_macro(entry, module->vm->stack.current);
-      printf("call(): macro: %zi:%zi\n", entry->depth, entry->id);
+      printf("call(): macro: %"PRId64":%"PRIu64"\n",
+             entry->depth, entry->id);
       break;
   }
   module->vm->stack.current = entry;

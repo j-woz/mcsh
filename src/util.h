@@ -124,6 +124,18 @@ char* slurp(const char* filename);
 
 char* slurp_fp(FILE* fp);
 
+/**
+   Like GNU strchrnul(): a pointer to the first c in s, or to the
+   terminating NUL if there is none.  Portable: strchrnul() needs
+   macOS 15.4 or newer.
+ */
+static inline const char*
+mcsh_strchrnul(const char* s, int c)
+{
+  const char* p = strchr(s, c);
+  return p != NULL ? p : s + strlen(s);
+}
+
 static inline void*
 malloc_checked(size_t n)
 {
