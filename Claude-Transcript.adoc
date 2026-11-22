@@ -287,6 +287,41 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
   possible trouble with -Werror, the readline/libm link flags, or the
   --disable-readline configure on macOS.
 
+== 2026-11-22 13:22:55
+
+=== Shamrock prompt
+
+* Default prompt is now `mcsh☘ ` (U+2618, no space before it) when
+  the locale uses UTF-8, else `mcsh> `; `mcc` the same (`mcc☘ `).
+  MCSH_ASCII=1 (read with getenv_boolean) forces `>`.
+* New `mcsh_prompt_dflt(name)` in mcsh-iface.c ("dflt" = default; the
+  user will be able to change the prompt later).
+* mcsh never called setlocale, so readline ran in the C locale and
+  would count the shamrock's 3 bytes as 3 characters.  Now the first
+  prompt (or first readline call) does setlocale(LC_CTYPE, "") and
+  checks nl_langinfo(CODESET) for UTF-8.  Only LC_CTYPE changes, so
+  the decimal point (LC_NUMERIC) is unaffected.
+* test-ui.sh now fixes LC_ALL=C and unsets MCSH_ASCII; a test can add
+  or override variables with `# TEST:UI_ENV: NAME=VALUE ...`.
+* New tests 0007i-shamrock (LC_ALL=C.UTF-8) and 0008i-ascii
+  (LC_ALL=C.UTF-8 MCSH_ASCII=1); 0005i-exit still expects `mcsh> `
+  in the C locale.  README "Run interactively" updated.
+
+== 2026-11-22 13:24:31
+
+=== Two spaces after the shamrock
+
+* The UTF-8 prompt is now `mcsh☘` followed by two spaces (`mcc☘`
+  too); the ASCII prompt keeps one space after `>`.
+* 0007i-shamrock expects the two spaces; it, 0008i-ascii and
+  0005i-exit pass.
+
+== 2026-11-22 13:25:51
+
+* README "Run interactively": examples show a command after each
+  prompt, and the text states the two spaces after the shamrock and
+  the one space after `>`.
+
 == 2026-11-22 13:33:40
 
 === macOS CI: fixes and status (correction to 13:18:59)
@@ -369,6 +404,29 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
 * Uncommitted: src/mcsh-data.c, this file.  Suggested:
   git add src/mcsh-data.c Claude-Transcript.adoc
 
+== 2026-11-22 13:45:22
+
+=== MCSH_UNICODE, MCSH_UNICODE_FORCE, and TERM checks
+
+* Dropped MCSH_ASCII.  New public `mcsh_unicode()` decides once:
+  MCSH_UNICODE=0 -> off (wins over FORCE); MCSH_UNICODE_FORCE=1 ->
+  on, switching LC_CTYPE to C.UTF-8 (or C.utf8) if not UTF-8;
+  otherwise on only if the locale is UTF-8 and TERM is not dumb,
+  unset/empty, linux or linux-*, or vt<digit>... (vte-256color is
+  allowed).  Invalid values warn and fall back to the default.
+* Conventions checked (locally: tmux -u, less LESSCHARSET; from
+  memory: SYSTEMD_UTF8, CARGO_TERM_UNICODE, NCURSES_NO_UTF8_ACS,
+  is-unicode-supported excluding TERM=linux).
+* mcsh -B ends with "Unicode in this environment": MCSH_UNICODE,
+  MCSH_UNICODE_FORCE, TERM, LC_ALL, LC_CTYPE, LANG, the locale codeset,
+  and "Unicode is enabled/disabled (reason)".  Label column widened
+  to 20.
+* Tests: 0008i-ascii replaced by 0008i-unicode-off; new 0009i-term-
+  linux, 0010i-term-vt100, 0011i-term-dumb, 0012i-unicode-force,
+  0013i-unicode-off-wins; 0006-build-info checks the new section.
+  test-ui.sh unsets MCSH_UNICODE and MCSH_UNICODE_FORCE.  README has
+  a new "Unicode" subsection and the updated -B example.
+
 == 2026-11-22 13:48:38
 
 === macOS CI: test step needs GNU timeout
@@ -383,3 +441,42 @@ form `YYYY-MM-DD HH:MM:SS`, with no time zone (America/Chicago).
 * Not yet run on GitHub.  Uncommitted: .github/workflows/tests.yaml,
   README.adoc.m4, README.adoc, this file.  Suggested:
   git add .github/workflows/tests.yaml README.adoc.m4 README.adoc Claude-Transcript.adoc
+
+== 2026-11-22 13:52:04
+
+=== Merged the macOS commits from GitHub (not committed)
+
+* Local main (84b1125 + 8d91c5b "Paragraph break") had diverged from
+  GitHub main (7 macOS commits, 6e423a1..059946b).  SSH fetch failed
+  (no SSH agent in this shell), so fetched read-only over HTTPS into
+  FETCH_HEAD.
+* Backed up uncommitted work to merge-tmp/ (patch + copies), reset the
+  four files both sides changed, ran `git merge --no-commit --no-ff`
+  (clean), then three-way merged the uncommitted work back on top.
+* Conflicts resolved: README.adoc.m4 (kept both: Run interactively and
+  Unicode, then the new "Building and testing"); Claude-Transcript.adoc
+  (entries from both machines interleaved by timestamp).  src/mcsh.c
+  merged cleanly; README.adoc regenerated.
+* Built, ran the UI and related tests, and compiled the changed files
+  at -O2 -Werror: all OK.
+* State: the merge is staged (MERGE_HEAD set) for the user to commit;
+  the uncommitted Unicode/prompt work stays unstaged on top.
+
+== 2026-11-22 13:55:10
+
+=== Merged 36d64ca "Fixes for Mac" (not committed)
+
+* The user committed the first merge as 4f6834c, unpushed; GitHub then
+  got 36d64ca (macOS: coreutils + gtimeout in CI, README wording,
+  a transcript entry), so main diverged again.
+* SSH still fails here: SSH_AUTH_SOCK is unset in this session's shell
+  (it is set up from a profile snapshot taken at session start).
+  Fetched read-only over HTTPS instead.
+* Same procedure: backup in merge-tmp/, reset the three shared files,
+  `git merge --no-commit --no-ff` (clean), three-way merge of the
+  uncommitted work.  README.adoc.m4 merged cleanly; the transcript's
+  entries were interleaved by timestamp; README.adoc regenerated.
+* Note: test-ui.sh uses GNU `timeout` and GNU `script` options, which
+  macOS lacks.  On macOS CI (built without readline) UI tests are
+  skipped before those run, but a macOS build with readline would fail
+  them.

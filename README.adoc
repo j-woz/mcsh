@@ -65,7 +65,48 @@ print DIR: $DIR
 
 ----
 $ mcsh
+mcsh☘  print hello
+hello
 ----
+
+When Unicode is enabled, the default prompt is `mcsh` and a shamrock
+(☘, U+2618) followed by two spaces.  Otherwise it is `mcsh>` followed
+by one space:
+
+----
+$ mcsh
+mcsh> print hello
+hello
+----
+
+The calculator `mcc` uses the same rule for its prompt: `mcc☘` and two
+spaces, or `mcc>` and one space.
+
+==== Unicode
+
+Unicode features, such as the shamrock prompt, are enabled when the
+locale uses UTF-8, as most modern systems do, and `TERM` is not one of
+these terminals, which often cannot show them:
+
+* `dumb`, or `TERM` unset or empty
+* `linux` or `linux-...`, the Linux text console
+* `vt52`, `vt100`, `vt220`, ..., DEC VT terminals
+
+Two environment variables override this:
+
+[cols="1,3"]
+|===
+| Variable | Effect
+
+| `MCSH_UNICODE=0`       | Disable Unicode features.  The default is `1`: decide as above.
+| `MCSH_UNICODE_FORCE=1` | Enable Unicode features, even for the terminals above or a locale that is not UTF-8; `mcsh` then switches to the `C.UTF-8` locale if the system has it.  The default is `0`.
+|===
+
+`MCSH_UNICODE=0` takes precedence over `MCSH_UNICODE_FORCE=1`.  For
+example, an Emacs shell buffer sets `TERM=dumb` but can show Unicode,
+so set `MCSH_UNICODE_FORCE=1` there to see the shamrock.  The end of
+the `mcsh -B` report shows the decision and the variables behind it
+(see <<_build_information>>).
 
 === Building and testing
 
@@ -94,18 +135,29 @@ was given, the git commit at that time, when `mcsh` was compiled, the
 host, the C compiler and its version, the compiler and linker flags
 (`CPPFLAGS`, `CFLAGS`, `AM_CFLAGS`, `LDFLAGS`, `LIBS`), the lexer and
 parser generators, and whether readline and its history support are
-included, with the readline library version.
+included, with the readline library version.  Its last section shows
+whether Unicode features are enabled in the current environment, why,
+and the variables that decide it (see <<_unicode>>).
 
 ----
 $ mcsh -B
 MCSH 0.0 build information:
-  configured       2026-11-22 13:07:21
-  compiled         Nov 22 2026 13:07:23
+  configured           2026-11-22 13:07:21
+  compiled             Nov 22 2026 13:07:23
   ...
-  readline         yes
-    configure      requested yes, found -lreadline
-    library        8.3
-    history        yes
+  readline             yes
+    configure          requested yes, found -lreadline
+    library            8.3
+    history            yes
+Unicode in this environment:
+  MCSH_UNICODE         (unset)
+  MCSH_UNICODE_FORCE   (unset)
+  TERM                 xterm-256color
+  LC_ALL               (unset)
+  LC_CTYPE             (unset)
+  LANG                 en_US.UTF-8
+  locale codeset       UTF-8
+  Unicode is enabled (UTF-8 locale and TERM=xterm-256color)
 ----
 
 == Lexical structure

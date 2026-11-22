@@ -109,7 +109,7 @@ static bool mcc_start_interactive(mcsh_module* module,
   bool result = true;
   while (loop)
   {
-    b = mcsh_iface_get("mcc> ", &code);
+    b = mcsh_iface_get(mcsh_prompt_dflt("mcc"), &code);
     assert(b);
     if (code == NULL)
       break;

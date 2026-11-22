@@ -21,6 +21,10 @@ setopt PIPE_FAIL
 #   --echo never   do not echo the typed lines, so a TEST:EXPECT: line
 #                  cannot match its own input
 # TERM and INPUTRC are fixed, as readline's output depends on them.
+# The locale is fixed to C, and MCSH_UNICODE and MCSH_UNICODE_FORCE
+# are unset, as the prompt depends on them (and on TERM).  A test may
+# add or override variables with lines
+#   # TEST:UI_ENV: NAME=VALUE ...
 # Valgrind is not used: vg.sh pipes mcsh's output, so readline would
 # no longer write to the terminal.
 
@@ -45,7 +49,11 @@ fi
 TEST=$1
 shift
 
-env TERM=xterm INPUTRC=/dev/null \
+# The session's environment: fixed values, then the test's own
+UI_ENV=( TERM=xterm INPUTRC=/dev/null LC_ALL=C )
+UI_ENV+=( ${=$( sed -n 's/.*TEST:UI_ENV: \(.*\)/\1/p' $TEST )} )
+
+env -u MCSH_UNICODE -u MCSH_UNICODE_FORCE $UI_ENV \
   timeout 30 script -q -e --echo never \
     -c "bin/mcsh ${*}" /dev/null \
   < $TEST | cat -v

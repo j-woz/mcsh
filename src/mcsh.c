@@ -109,8 +109,10 @@ mcsh_help()
 static void
 build_line(const char* label, const char* value)
 {
-  printf("  %-16s %s\n", label, value[0] != '\0' ? value : "(none)");
+  printf("  %-20s %s\n", label, value[0] != '\0' ? value : "(none)");
 }
+
+static void unicode_info(void);
 
 /** mcsh -B: report how this mcsh was configured and built */
 static void
@@ -141,6 +143,33 @@ mcsh_build_info(void)
 #else
   build_line("  history",      "no");
 #endif
+  unicode_info();
+}
+
+/** An environment variable's value for mcsh -B, or (unset) */
+static const char*
+env_value(const char* name)
+{
+  const char* v = getenv(name);
+  return (v == NULL) ? "(unset)" : v;
+}
+
+/** The end of mcsh -B: whether Unicode features are on in this
+    environment, and the variables that decide it */
+static void
+unicode_info(void)
+{
+  bool on = mcsh_unicode();
+  printf("Unicode in this environment:\n");
+  build_line("MCSH_UNICODE",       env_value("MCSH_UNICODE"));
+  build_line("MCSH_UNICODE_FORCE", env_value("MCSH_UNICODE_FORCE"));
+  build_line("TERM",               env_value("TERM"));
+  build_line("LC_ALL",             env_value("LC_ALL"));
+  build_line("LC_CTYPE",           env_value("LC_CTYPE"));
+  build_line("LANG",               env_value("LANG"));
+  build_line("locale codeset",     mcsh_locale_codeset());
+  printf("  Unicode is %s (%s)\n", on ? "enabled" : "disabled",
+         mcsh_unicode_reason());
 }
 
 void
