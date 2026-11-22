@@ -794,8 +794,7 @@ parse_contig(context* ctx, subscript* ss, const char* spec)
   do
   {
     // MIXING UP SPEC AND PARSED SUBSCRIPT
-    char* q = strchr(p, ',');
-    if (q == NULL) q = (char*) p + strlen(p);
+    const char* q = mcsh_strchrnul(p, ',');
     if (q == end) done = true;
     const char* colon = strchr(p, ':');
     // Colon not found or colon in next contig: single value

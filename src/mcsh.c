@@ -1990,8 +1990,9 @@ sg_parse_string(mcsh_module* module,
   char* c1 = strchr(t, ':');
   if (c1 != NULL)
   {
-    char* c2 = strchr(c1+1, ':');
-    if (c2 == NULL) c2 = c1 + strlen(c1);
+    // t is our writable copy, so the cast is safe; c2 is written
+    // below.
+    char* c2 = (char*) mcsh_strchrnul(c1+1, ':');
 
     // A default must be written with '=', not a second ':'.
     if (*c2 != '\0')
@@ -2407,7 +2408,8 @@ do_token(mcsh_logger* logger, mcsh_module* module,
          mcsh_thing* token, list_array* values,
          mcsh_status* status)
 {
-  bool rc = true;  // only the TOKEN case sets it; others report via status
+  // Only the TOKEN case sets rc; the others report through status.
+  bool rc = true;
   mcsh_value* value;
   mcsh_stmts* stmts;
   switch (token->type)
@@ -3053,11 +3055,13 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
       break;
     case MCSH_FN_INPLACE:
       mcsh_entry_init_scope(entry, module->vm->stack.current);
-      printf("call(): scope: %"PRId64":%"PRIu64"\n", entry->depth, entry->id);
+      printf("call(): scope: %"PRId64":%"PRIu64"\n",
+             entry->depth, entry->id);
       break;
     case MCSH_FN_MACRO:
       mcsh_entry_init_macro(entry, module->vm->stack.current);
-      printf("call(): macro: %"PRId64":%"PRIu64"\n", entry->depth, entry->id);
+      printf("call(): macro: %"PRId64":%"PRIu64"\n",
+             entry->depth, entry->id);
       break;
   }
   module->vm->stack.current = entry;

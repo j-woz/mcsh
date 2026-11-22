@@ -72,6 +72,24 @@ print DIR: $DIR
 $ mcsh
 ----
 
+=== Building and testing
+
+Build from a git checkout with the autotools:
+
+----
+$ ./bootstrap
+$ ./configure --prefix=$HOME/mcsh-install
+$ make
+----
+
+The test suite is `test/script/test-all.zsh`, and needs `zsh`.  The
+GitHub workflow (`.github/workflows/tests.yaml`) builds with
+`--disable-readline` and runs the suite on `ubuntu-latest` and
+`macos-15`.  On macOS the workflow installs `autoconf`, `automake`,
+`libtool`, `flex` and `bison` with Homebrew, because the system
+`bison` is too old for the grammars.  Tests that need readline are
+skipped when the build has none.
+
 === Build information
 
 `mcsh -B` reports how this `mcsh` was configured and built, then
