@@ -621,12 +621,12 @@ MCSH has a data model that includes `function`, `inplace`, `macro`, `module`, an
 
 `function` parameters and variables assigned in a body are local.
 `global` links a name to a global variable.
-`public` exposes a module variable.
 
 ----
+# stores a+3 as global x:
 function f { a } {
   global x
-  x=3
+  x=(( 3 + $a ))
 }
 ----
 
@@ -639,10 +639,8 @@ same signature grammar.  Within the body, both:
 
 They differ only in where a variable that the body first assigns goes:
 
-* `inplace`: the variable is local to the call and is gone when it
-  returns.
-* `macro`: the variable is created in the caller's frame, so it remains
-  after the call.
+* `inplace`: the variable is local to the call and is gone when it returns
+* `macro`: the variable is created in the caller's frame, so it remains after the call.
 
 ----
 function f { } {
@@ -659,6 +657,26 @@ f
 
 Use `inplace` when the body should not leave new variables behind in the
 caller, and `macro` when it should.
+
+== Modules
+
+`import NAME` loads the script `NAME.mc` as a module.  Its variables are
+reached as `$NAME.VAR`, and only the names it declares `public` are visible
+to the importer:
+
+----
+# sub.mc
+public v
+v=42
+hidden=7
+
+# main.mc
+import sub
+print $sub.v          # 42
+print $sub.hidden     # error: hidden is not public
+----
+
+TODO: Module functions may not work.
 
 === Signatures
 
@@ -1000,6 +1018,26 @@ example, an Emacs shell buffer sets `TERM=dumb` but can show Unicode,
 so set `MCSH_UNICODE_FORCE=1` there to see the shamrock.  The end of
 the `mcsh -B` report shows the decision and the variables behind it
 (see <<_build_information,Build information>>).
+
+=== Readline and history
+
+If mcsh is built with readline (the default; see <<_build_information,Build
+information>>), the interactive prompt has line editing from the readline
+library, including Ctrl-R for reverse search through history.  Scripts and
+`-c` commands do not use readline.
+
+Each non-empty line entered at the prompt is added to the history and
+appended to a history file, so history carries over between sessions.  The
+file is `mcsh.history` in `~/.config/mcsh` if that directory exists;
+otherwise in `~/.mcsh_history`.
+
+Readline also sets the character-type locale from the environment before
+it reads a line, so multibyte characters such as the shamrock are handled
+correctly (see <<unicode,Unicode>>).
+
+To build without readline, configure with `--disable-readline`
+(equivalent to `--enable-readline=no`).  The prompt then reads plain lines,
+with no editing and no history, and `mcsh -B` reports readline as `no`.
 
 
 
