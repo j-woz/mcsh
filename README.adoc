@@ -627,13 +627,35 @@ function f { a } {
 }
 ----
 
-`inplace` and `macro` define callables that run in the caller's scope
-(useful for mutating caller variables), with the same signature grammar:
+`inplace` and `macro` define callables whose body runs in the caller's
+frame, rather than in a frame of its own like `function`.  Both take the
+same signature grammar.  Within the body, both:
+
+* read and change the caller's existing variables,
+* see the caller's arguments, so `$1` and `$@` are the caller's.
+
+They differ only in where a variable that the body first assigns goes:
+
+* `inplace`: the variable is local to the call and is gone when it
+  returns.
+* `macro`: the variable is created in the caller's frame, so it remains
+  after the call.
 
 ----
-inplace m { } { g=1000 }
-macro   n { } { print HELLO }
+function f { } {
+  x=5
+  inplace m { } { q=1; x=9 }
+  m
+  print $+q $x          # 0 9:  q was local to m; x was changed
+  macro n { } { r=1 }
+  n
+  print $+r             # 1:    r was created in f's frame
+}
+f
 ----
+
+Use `inplace` when the body should not leave new variables behind in the
+caller, and `macro` when it should.
 
 === Signatures
 
