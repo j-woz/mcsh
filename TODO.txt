@@ -36,7 +36,7 @@ Using syntax:
 = x =(( $x + 2 ))   # auto-expr (TODO)
 = x  (( $ $x + 2 )) # equivalent to above
 
-All functions return bool - false indicates internal error or bug.
+All C functions return bool - false indicates internal error or bug.
 This works with the macro CHECK()
 User code should never trigger this, but should trigger exceptions.
 
@@ -53,7 +53,10 @@ https://www.reddit.com/r/C_Programming/comments/ozew2u/better_way_to_get_a_rando
 
 Tests 5200 5201 5601 6116 6120
 
-Quoted numbers are not strings!  2026-09-25  FIXED: 2026-09-28
+These two don't seem to work:
+
+= v $(( command ))
+v=$(( command ))
 
 = CORE =
 
@@ -233,6 +236,7 @@ build list_out_item
 2025-03-13 Handle exceptions when interactive NEW: 2023-09-09
 2026-03-10 V=3 assignments and V=(( f $x ))
 2026-09-25 Make expr support floats NEW: 2023-08-19
+2026-09-28 FIX: Quoted numbers are not strings!
 2026-09-29 calc builtin functions: abs(), round(), pow(), etc.
 2026-10-13 true/false literals - bool type - DEP generics
 2026-11-19 Named arguments 'f x=3' NEW: 2023-11-08
