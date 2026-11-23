@@ -16,7 +16,8 @@ shell-like command syntax.  Notable improvements over POSIX-like shells include:
 . Ability to execute macro-like expressions
 . First-class data structures (lists and tables)
 . A unified and clean argument-handling system shared between command-line arguments and function calls
-. Rich control structures, modules, types, and exceptions.
+. Rich control structures, modules, types, and exceptions
+. Standard readline editing and history.
 
 == Invocation
 
@@ -292,10 +293,20 @@ print (( $ sqrt( abs( -16 ) ) )) # 4.0   -- calls nest
 print (( $ abs( -2 ) + 10 ))     # 12    -- mix with operators
 ----
 
-`abs` preserves the operand type (int stays int, float stays float).  The
-unary functions include `sqrt cbrt exp log log2 log10 sin cos tan asin
-acos atan floor ceil round trunc`; the binary functions include `pow atan2
-hypot min max`.
+`abs` preserves the operand type (`int` stays `int`, `float` stays `float`).
+
+The unary functions include:
+
+----
+sqrt cbrt exp log log2 log10
+sin cos tan asin acos atan
+abs floor ceil round trunc
+----
+
+The binary functions include
+----
+pow atan2 hypot min max
+----
 
 [[subshell]]
 === Substitution in subshells
@@ -311,9 +322,13 @@ Like other shells, MCSH can run commands in subprocess shells (subshells) and ca
 |===
 
 ----
-y=(( f 3 ))        # y gets f's return value
-print (( type $y ))  # substitute a builtin's result
+y=(( f 3 ))               # y gets return value from f
+print (( type $y ))       # substitute a builtin's result
+print $(( print HELLO ))  # prints HELLO from subshell to current shell
+user=$(( ! whoami ))      # obtain my user name
 ----
+
+See the syntax for calling <<external_programs,external programs>>.
 
 == Strings and data operations
 
@@ -387,20 +402,28 @@ print (( string = a a a ))       # 1   -- all arguments equal?
 === Lists
 
 ----
+# Construct list:
 L=(( list ))
+# Append to list:
 + $L jk mn op
+# Print list:
 print $L                 # [jk,mn,op]
-L2=(( split jk,mn,ab , ))  # split on a delimiter
-s=(( join $L "," ))       # join with a delimiter
-sort $L                      # sort in place (ints or strings)
+# Construct list with string split:
+L2=(( split jk,mn,ab , ))
+# Render list back to string:
+s=(( join $L "," ))
+sort $L                  # sort in place (ints or strings)
 ----
 
 === Tables
 
 ----
+# Construct table:
 T=(( table ))
+# Append key/values to table:
 + $T a 1
 + $T b 2
+# Print table:
 print $T          # {a:1,b:2}
 print $T[a]       # 1       -- look up by key
 print $@T         # [a,b]   -- the keys as a list
@@ -420,12 +443,12 @@ print HELLO             # print arguments, space-separated, newline at end
 
 ----
 fp=(( open "f.txt" w ))   # modes "r", "w", ...
->> $fp HELLO                # write a line to a file handle
+>> $fp HELLO              # write a line to a file handle
 close $fp
 fp=(( open "f.txt" r ))
 line=(( << $fp ))         # read a line
 close $fp
-flush                       # flush output
+flush                     # flush output
 ----
 
 With no handle, `<<` reads a line from standard input.
@@ -445,6 +468,7 @@ print (( os resolve ./.. )) # canonical path
 print (( os pid ))          # process id
 ----
 
+[[external_programs]]
 === External programs
 
 ----
@@ -463,7 +487,7 @@ jobs                        # list background jobs
 === Timing
 
 ----
-sleep 2.3                   # seconds, fractional allowed
+sleep 2.3                 # seconds, fractional allowed
 now=(( clock ))           # seconds since the epoch (int)
 ----
 
@@ -489,13 +513,20 @@ exit                        # exit 0
 exit 1                      # exit with a code
 ----
 
-=== Miscellaneous builtins
+=== Miscellaneous builtin commands
 
-The spaced form of assignment, `= name value`, also works and means the
-same as `name=value`.  This manual uses the attached form throughout:
+==== Assignment as command
+
+The builtin form of assignment, `= name value`, also works and means the same as `name=value`.
 
 ----
-= x 3                       # same as x=3
+ = x 3           # same as x=3
+----
+
+==== Alternative default syntax
+
+----
+ := x 3          # same as default x 3
 ----
 
 == Control flow
@@ -619,21 +650,18 @@ rest parameter, which collects any extra arguments.
 |===
 | Form | Meaning
 
-| `x`            | A positional parameter.
-| `x:int`        | Typed; the argument is type-checked.
-| `x=789`        | A default value (used when the argument is absent).
-| `x:int=789`    | Typed with a default.
-| `-v:bool=false`| A boolean *flag*: the token `-v` sets it to `true`.
-| `-o=out`       | A value flag: `-o VALUE` sets it; defaults to `out`.
-| `+rest...+`    | A rest parameter: a list of the leftover arguments.
+| `x`             | A positional parameter.
+| `x:int`         | Typed; the argument is type-checked.
+| `x=789`         | A default value (used when the argument is absent).
+| `x:int=789`     | Typed with a default.
+| `-v:bool=false` | A boolean *flag*: the token `-v` sets it to `true`.
+| `-o=out`        | A value flag: `-o VALUE` sets it; defaults to `out`.
+| `+rest...+`     | A rest parameter: a list of the leftover arguments.
 | `+rest:int...+` | A typed rest parameter: each leftover is type-checked.
-| `+...+`        | Allows extra arguments without naming them.
+| `+...+`         | Allows extra arguments without naming them.
 |===
 
-A default must be written with `=`, never a second colon (`x:int:789` is a
-syntax error).  A rest parameter must be the last parameter, cannot have
-a default or be a flag, and cannot repeat another parameter's name.
-Each of these is a syntax error, as is an unknown type name.
+A rest parameter must be the last parameter, cannot have a default or be a flag, and cannot repeat another parameter's name.
 
 === Calling conventions
 
@@ -645,7 +673,7 @@ function f { x y z:int=789 } {
   print f_result x $x y $y z $z
 }
 
-f 1 2 3           # positional          -> x 1 y 2 z 3
+f 1 2 3           # positional           -> x 1 y 2 z 3
 f 1 2             # default applies      -> x 1 y 2 z 789
 f 1 2 z=55        # named overrides      -> x 1 y 2 z 55
 f x=10 y=20 z=30  # all named            -> x 10 y 20 z 30
@@ -656,8 +684,8 @@ Some arguments are converted to the parameter's type before the type
 check: an `int` becomes a `float` for a `float` parameter, and `0` or `1`
 becomes `false` or `true` for a `bool` parameter.  A quoted string stays
 a string, so `f "42"` does not satisfy an `int` parameter.  Command-line
-arguments are text, and are converted too (see
-<<_command_line_arguments,Command-line arguments>>).
+arguments are text, and are converted too
+(see <<_command_line_arguments,Command-line arguments>>).
 
 Error cases raise exceptions: an unknown name (`no such argument`), a type
 mismatch (`requires a int`), a missing required argument (`did not assign
@@ -669,7 +697,7 @@ and the syntax errors noted above.
 Flags use the same signature grammar, and work identically whether the
 arguments come from a function call or from the command line.  A `bool`
 flag is presence-only (`-v` sets it `true`); any other flag consumes the
-next argument as its value.
+next word as its value.
 
 ----
 function run { -v:bool=false -o=out file } {
@@ -710,12 +738,12 @@ These read the positional arguments of the current function call:
 |===
 | Name | Meaning
 
-| `+$0+`             | The function's name.
-| `+$1+`, `+$2+`, ... | The positional arguments, counting from 1.  A missing one raises an exception.
-| `++$+1++`          | `1` if `+$1+` exists, else `0`; never raises.
-| `+$#+`             | The number of positional arguments.
-| `+$@+`             | The positional arguments as one list.
-| `+$*+`             | The positional arguments as separate words (list expansion).
+| `+$0+`              | The current function name
+| `+$1+`, `+$2+`, ... | The positional arguments, counting from 1
+| `++$+1++`           | `1` if `+$1+` exists, else `0`
+| `+$#+`              | The number of positional arguments
+| `+$@+`              | The positional arguments as one list
+| `+$*+`              | The positional arguments as separate words (list expansion)
 |===
 
 Only positional arguments count: not flags, flag values, or `name=value`
@@ -737,7 +765,7 @@ the arguments on as separate words.  An `inplace` or `macro` call shares
 the arguments of the function that called it.  At script top level,
 these read the script's own arguments (see <<_command_line_arguments,Command-line arguments>>).
 
-=== shift
+=== The `shift` builtin
 
 `shift` drops the first positional argument, so that `+$1+` is the next
 one; `shift N` drops `N` of them.  It returns `true`, or `false` if
@@ -835,11 +863,6 @@ print $this
 t1=$time
 r=$random
 ----
-
-== Experimental features
-
-The following are present in the test suite but not yet complete, and may
-change: `module { ... }` blocks and `class`/`extends` definitions.
 
 == Examples
 
