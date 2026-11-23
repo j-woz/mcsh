@@ -115,6 +115,7 @@ Rename mcsh_to_string() to mcsh_to_string_out() &
 New mcsh_to_string_new(): allocates a new string. NEW 2026-05-19
 Exception catch syntax.  NEW 2026-11-19
 Fix $? NEW 2026-11-19
+Fix module function calls of both uses: 'a.f 3' and '$a.f 3'
 
 = Eclipse =
 
