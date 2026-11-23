@@ -622,8 +622,11 @@ y=(( inc 3 ))     # 4
 
 === Scope, globals, and macros
 
-Function parameters and variables assigned in a body are local.  `global`
-links a name to a global variable; `public` exposes a module variable.
+MCSH has a data model that includes `function`, `inplace`, `macro`, `module`, and `global` variables.
+
+`function` parameters and variables assigned in a body are local.
+`global` links a name to a global variable.
+`public` exposes a module variable.
 
 ----
 function f { a } {
