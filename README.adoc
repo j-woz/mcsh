@@ -11,6 +11,7 @@ shell-like command syntax.  Notable improvements over POSIX-like shells include:
 . Ability to execute macro-like expressions
 . First-class data structures (lists and tables)
 . A unified and clean argument-handling system shared between command-line arguments and function calls
+. Rich control structures, modules, types, and exceptions.
 
 == Invocation
 
@@ -42,7 +43,7 @@ print $x            # 42
 ----
 
 Script flags that begin with `-` are passed through to the script untouched
-(see <<_command_line_arguments>>):
+(see <<_command_line_arguments,Command-line arguments>>):
 
 ----
 $ mcsh script.mc -v -o out.txt input.txt
@@ -52,7 +53,7 @@ $ mcsh script.mc -v -o out.txt input.txt
 
 A script whose first line is `#!/usr/bin/env mcsh` and which has its
 execute bit set can be run directly, if `mcsh` is on the `PATH`.  Its
-arguments are bound with `signature` (see <<_command_line_arguments>>):
+arguments are bound with `signature` (see <<_command_line_arguments,Command-line arguments>>):
 
 ----
 #!/usr/bin/env mcsh
@@ -60,6 +61,8 @@ arguments are bound with `signature` (see <<_command_line_arguments>>):
 signature DIR
 print DIR: $DIR
 ----
+
+See <<signature,the signature builtin>> for more information.
 
 === Run interactively
 
@@ -82,85 +85,9 @@ hello
 The calculator `mcc` uses the same rule for its prompt: `mcc☘` and two
 spaces, or `mcc>` and one space.
 
-==== Unicode
-
-Unicode features, such as the shamrock prompt, are enabled when the
-locale uses UTF-8, as most modern systems do, and `TERM` is not one of
-these terminals, which often cannot show them:
-
-* `dumb`, or `TERM` unset or empty
-* `linux` or `linux-...`, the Linux text console
-* `vt52`, `vt100`, `vt220`, ..., DEC VT terminals
-
-Two environment variables override this:
-
-[cols="1,3"]
-|===
-| Variable | Effect
-
-| `MCSH_UNICODE=0`       | Disable Unicode features.  The default is `1`: decide as above.
-| `MCSH_UNICODE_FORCE=1` | Enable Unicode features, even for the terminals above or a locale that is not UTF-8; `mcsh` then switches to the `C.UTF-8` locale if the system has it.  The default is `0`.
-|===
-
-`MCSH_UNICODE=0` takes precedence over `MCSH_UNICODE_FORCE=1`.  For
-example, an Emacs shell buffer sets `TERM=dumb` but can show Unicode,
-so set `MCSH_UNICODE_FORCE=1` there to see the shamrock.  The end of
-the `mcsh -B` report shows the decision and the variables behind it
-(see <<_build_information>>).
-
-=== Building and testing
-
-Build from a git checkout with the autotools:
-
-----
-$ ./bootstrap
-$ ./configure --prefix=$HOME/mcsh-install
-$ make
-----
-
-The test suite is `test/script/test-all.zsh`, and needs `zsh`.  The
-GitHub workflow (`.github/workflows/tests.yaml`) builds with
-`--disable-readline` and runs the suite on `ubuntu-latest` and
-`macos-15`.  On macOS the workflow installs `autoconf`, `automake`,
-`libtool`, `flex`, `bison` and `coreutils` with Homebrew.  The system
-`bison` is too old for the grammars, and `coreutils` supplies
-`gtimeout`, since macOS has no `timeout`.  Tests that need readline are
-skipped when the build has none.
-
-=== Build information
-
-`mcsh -B` reports how this `mcsh` was configured and built, then
-exits.  The report covers when `configure` ran and the arguments it
-was given, the git commit at that time, when `mcsh` was compiled, the
-host, the C compiler and its version, the compiler and linker flags
-(`CPPFLAGS`, `CFLAGS`, `AM_CFLAGS`, `LDFLAGS`, `LIBS`), the lexer and
-parser generators, and whether readline and its history support are
-included, with the readline library version.  Its last section shows
-whether Unicode features are enabled in the current environment, why,
-and the variables that decide it (see <<_unicode>>).
-
-----
-$ mcsh -B
-MCSH 0.0 build information:
-  configured           2026-11-22 13:07:21
-  compiled             Nov 22 2026 13:07:23
-  ...
-  readline             yes
-    configure          requested yes, found -lreadline
-    library            8.3
-    history            yes
-Unicode in this environment:
-  MCSH_UNICODE         (unset)
-  MCSH_UNICODE_FORCE   (unset)
-  TERM                 xterm-256color
-  LC_ALL               (unset)
-  LC_CTYPE             (unset)
-  LANG                 en_US.UTF-8
-  locale codeset       UTF-8
-  Unicode is enabled (UTF-8 locale and TERM=xterm-256color)
-----
-
 == Lexical structure
+
+The syntax for MCSH is very similar to other shell-like languages.
 
 === Statements
 
@@ -194,12 +121,25 @@ be treated as a string literal:
 
 ----
 print "ab cd"           # one argument with a space
-= s "a    b"            # internal spaces preserved
-= e ""                  # the empty string
+s="a    b"            # internal spaces preserved
+e=""                  # the empty string
 ----
 
 A quoted literal is always a string: it is never coerced to a number, and
-it is rejected as an operand to arithmetic (see <<_expressions>>).
+it is rejected as an operand to arithmetic (see <<_expressions,Expressions>>).
+
+[[subcommand]]
+=== Expression evaluation
+
+Commands are sequences of words (as in the POSIX shell), but always return a value.  This value is obtained for further evaluation with the _subcommand expression_, written +(( command ))+ .  For example:
+
+----
+first="George"
+last="Washington"
+# String concat builtin:
+fullname=(( + $first " " $last ))
+print $fullname          # George Washington
+----
 
 == Values and types
 
@@ -224,53 +164,52 @@ A bare word is classified when it is evaluated: `true`/`false` become
 becomes `float`, and anything else is a `string`.
 
 ----
-= b true
+b=true
 print (( type $b ))      # bool
-= i 5
+i=5
 print (( type $i ))      # int
 ----
 
-In arithmetic a `bool` coerces to `1`/`0`.
+In arithmetic a `bool` coerces to `1` (true) or `0` (false).
 
 == Variables
 
 === Assignment
 
+Note that, like other shells, MCSH is sensitive to spacing in assignment operations!
+
 `=` assigns a value to a variable.  `$name` reads it.
 
 ----
-= x 3
+x=3
 print $x
 ----
 
-The attached form `name=value` also assigns:
+The command-attached form `name=value` also assigns:
 
 ----
-x=(( $ 3 ))
-print $x
+x=(( $ 3 + 2 ))
+print $x                 # 5
 ----
 
 === Assign only if undefined
 
-`:=` assigns only when the variable is not already set; otherwise it does
-nothing:
+The builtin `default` assigns only when the variable is not already set; otherwise it does nothing:
 
 ----
-:= x 10
+default x 10
 print $x          # 10
-:= x 20
+default x 20
 print $x          # still 10
 ----
 
-`default` is a synonym for `:=`, so `default x 10` means the same as
-`:= x 10`.  Either takes one or more `NAME=VALUE` pairs instead:
+One or more `NAME=VALUE` pairs may be provided:
 
 ----
 default k1=v1 k2=v2
 ----
 
-"Already set" means anything `$+name` finds: a variable, a global
-(including a `KEY=VALUE` given on the command line), an environment
+NOTE: "Already set" means anything the <<defined_text,defined test>> `$+name` finds: a variable, a global (including a `KEY=VALUE` given on the command line), an environment
 variable, or a magic variable such as `$this`.  So `default PATH x`
 leaves the environment's `PATH` alone.
 
@@ -279,8 +218,9 @@ leaves the environment's `PATH` alone.
 `drop` removes a variable.
 
 ----
-= x 42
+x=42
 drop x
+print $x                 # uncaught exception
 ----
 
 === Length and the defined-test
@@ -289,7 +229,7 @@ drop x
 `$+name` is `1` if the variable is defined, else `0`.
 
 ----
-= x abc
+x=abc
 print $#x          # 3
 print $+x          # 1
 print $+missing    # 0
@@ -298,7 +238,7 @@ print $+missing    # 0
 == Expressions
 
 The `$` builtin evaluates an arithmetic/logical expression.  It is almost
-always used inside a value substitution `(( ... ))` so the result can be
+always used inside a value substitution +(( ... ))+ so the result can be
 captured:
 
 ----
@@ -354,18 +294,21 @@ unary functions include `sqrt cbrt exp log log2 log10 sin cos tan asin
 acos atan floor ceil round trunc`; the binary functions include `pow atan2
 hypot min max`.
 
-=== Substitution
+[[subshell]]
+=== Substitution in subshells
+
+Like other shells, MCSH can run commands in subprocess shells (subshells) and capture the output.  This is different from <<subcommand,subcommand evaluation>>.
 
 [cols="1,3"]
 |===
 | Form | Meaning
 
-| `(( cmd ))`   | Run `cmd` and substitute its return value.
-| `$(( cmd ))`  | Run `cmd` and substitute its captured standard output.
+| +(( cmd ))+   | Run `cmd` and substitute its return value.
+| +$(( cmd ))+  | Run `cmd` and substitute its captured standard output.
 |===
 
 ----
-= y (( f 3 ))        # y gets f's return value
+y=(( f 3 ))        # y gets f's return value
 print (( type $y ))  # substitute a builtin's result
 ----
 
@@ -384,7 +327,7 @@ print (( + AA BB CC ))   # string concatenation -> AABBCC
 === Increment: `++`
 
 ----
-= i 0
+i=0
 ++ i
 print $i            # 1
 ----
@@ -395,7 +338,7 @@ Index a string or list with `$x[i]`.  A range `$x[a:b]` is the half-open
 slice from `a` up to (not including) `b`; either end may be omitted.
 
 ----
-= x abcdef
+x=abcdef
 print $x[1]         # b
 print $x[2:4]       # cd
 print $x[:2]        # ab
@@ -415,7 +358,7 @@ regular expressions), yielding `1` or `0`.  `$x/regex/replacement`
 substitutes the first match:
 
 ----
-= x abcdef
+x=abcdef
 print $x/cdx        # 0   -- no match
 print $x/cd/O88O    # abO88Oef   -- substitute
 ----
@@ -433,26 +376,26 @@ print *.txt         # expands to the matching file names
 === Other string builtins
 
 ----
-= s (( substring justin 2 4 ))   # st  -- characters [2,4)
-= i (( find justin st ))         # 2   -- index of substring, or -1
+s=(( substring justin 2 4 ))   # st  -- characters [2,4)
+i=(( find justin st ))         # 2   -- index of substring, or -1
 print (( string = a a a ))       # 1   -- all arguments equal?
 ----
 
 === Lists
 
 ----
-= L (( list ))
+L=(( list ))
 + $L jk mn op
 print $L                 # [jk,mn,op]
-= L2 (( split jk,mn,ab , ))  # split on a delimiter
-= s  (( join $L "," ))       # join with a delimiter
+L2=(( split jk,mn,ab , ))  # split on a delimiter
+s=(( join $L "," ))       # join with a delimiter
 sort $L                      # sort in place (ints or strings)
 ----
 
 === Tables
 
 ----
-= T (( table ))
+T=(( table ))
 + $T a 1
 + $T b 2
 print $T          # {a:1,b:2}
@@ -473,11 +416,11 @@ print HELLO             # print arguments, space-separated, newline at end
 === Files
 
 ----
-= fp (( open "f.txt" w ))   # modes "r", "w", ...
+fp=(( open "f.txt" w ))   # modes "r", "w", ...
 >> $fp HELLO                # write a line to a file handle
 close $fp
-= fp (( open "f.txt" r ))
-= line (( << $fp ))         # read a line
+fp=(( open "f.txt" r ))
+line=(( << $fp ))         # read a line
 close $fp
 flush                       # flush output
 ----
@@ -518,7 +461,7 @@ jobs                        # list background jobs
 
 ----
 sleep 2.3                   # seconds, fractional allowed
-= now (( clock ))           # seconds since the epoch (int)
+now=(( clock ))           # seconds since the epoch (int)
 ----
 
 === Evaluation and inclusion
@@ -533,7 +476,7 @@ import submodule            # import a module; names become submodule.NAME
 
 ----
 print (( type $x ))         # the type name
-= n (( as int "42" ))       # parse to int
+n=(( as int "42" ))       # parse to int
 ----
 
 === Exit
@@ -541,6 +484,15 @@ print (( type $x ))         # the type name
 ----
 exit                        # exit 0
 exit 1                      # exit with a code
+----
+
+=== Miscellaneous builtins
+
+The spaced form of assignment, `= name value`, also works and means the
+same as `name=value`.  This manual uses the attached form throughout:
+
+----
+= x 3                       # same as x=3
 ----
 
 == Control flow
@@ -583,7 +535,7 @@ loop {
 } until { $ $x == 3 }
 
 loop while { $ $x < 3 } {
-  = x (( $ $x + 1 ))
+  x=(( $ $x + 1 ))
 }
 
 loop {
@@ -595,7 +547,7 @@ loop {
 `repeat` runs a fixed number of times, optionally binding the index:
 
 ----
-for { = i 0 } { $ $i < 3 } { ++ i } {
+for { i=0 } { $ $i < 3 } { ++ i } {
   print i is $i
 }
 
@@ -625,13 +577,13 @@ f 2 3               # XY 2 3
 ----
 
 The last value produced by the body is the function's return value, which
-can be captured with `(( ... ))`:
+can be captured with +(( ... ))+:
 
 ----
 function inc { x } {
   $ $x + 1
 }
-= y (( inc 3 ))     # 4
+y=(( inc 3 ))     # 4
 ----
 
 === Scope, globals, and macros
@@ -642,7 +594,7 @@ links a name to a global variable; `public` exposes a module variable.
 ----
 function f { a } {
   global x
-  = x 3
+  x=3
 }
 ----
 
@@ -650,7 +602,7 @@ function f { a } {
 (useful for mutating caller variables), with the same signature grammar:
 
 ----
-inplace m { } { = g 1000 }
+inplace m { } { g=1000 }
 macro   n { } { print HELLO }
 ----
 
@@ -702,7 +654,7 @@ check: an `int` becomes a `float` for a `float` parameter, and `0` or `1`
 becomes `false` or `true` for a `bool` parameter.  A quoted string stays
 a string, so `f "42"` does not satisfy an `int` parameter.  Command-line
 arguments are text, and are converted too (see
-<<_command_line_arguments>>).
+<<_command_line_arguments,Command-line arguments>>).
 
 Error cases raise exceptions: an unknown name (`no such argument`), a type
 mismatch (`requires a int`), a missing required argument (`did not assign
@@ -780,7 +732,7 @@ f a -v b c
 Unlike bash and zsh, `+$@+` is a single list value; use `+$*+` to pass
 the arguments on as separate words.  An `inplace` or `macro` call shares
 the arguments of the function that called it.  At script top level,
-these read the script's own arguments (see <<_command_line_arguments>>).
+these read the script's own arguments (see <<_command_line_arguments,Command-line arguments>>).
 
 === shift
 
@@ -804,11 +756,14 @@ each x y z          # item: x   item: y   item: z
 In an `inplace` or `macro` call, `shift` acts on the arguments of the
 function that called it.
 
-== Command-line arguments
+== Command-line handling
+
+[[signature]]
+=== The `signature` builtin
 
 The `signature` command binds the script's own command-line arguments
 using the exact same grammar as a function signature -- this shared
-binding is a central feature of MCSH.  After `signature`, each parameter
+syntax is a central feature of MCSH.  After `signature`, each parameter
 name becomes a variable.
 
 ----
@@ -825,8 +780,8 @@ true false dog _ data
 that is: `-f` is present (true), `-g` defaults false, `-x` takes `dog`,
 `-y` defaults `_`, and the positional `z` defaults to `data`.
 
-The rules are the same as for function calls (see <<_signatures>> and
-<<_calling_conventions>>):
+The rules are the same as for function calls (see <<_signatures,Signatures>> and
+<<_calling_conventions,Calling conventions>>):
 
 * Arguments after the script name fill the positional parameters in
   order; flags may appear anywhere among them.
@@ -845,15 +800,15 @@ The rules are the same as for function calls (see <<_signatures>> and
 One difference: `name=value` arguments are not recognized on the
 command line.  After the script name, `x=5` is an ordinary positional
 argument.  Before the script name, `KEY=VALUE` sets a global (see
-<<_run_a_script>>).
+<<_run_a_script,Run a script>>).
 
 The parameters become global variables.  At top level, `+$0+` is the
 script name, and `+$1+`, `+$@+`, `+$*+` and `+$#+` read the script's
-arguments (see <<_positional_arguments>>); `shift` works on them too.
+arguments (see <<_positional_arguments,Positional arguments>>); `shift` works on them too.
 After `signature`, they see only the positional arguments, not the
 flags it consumed, and any earlier `shift` is undone.  The raw
 arguments are always available as `$mcsh.argc` and `$mcsh.argv` (see
-<<_magic_variables>>).
+<<_magic_variables,Magic variables>>).
 
 == Magic variables
 
@@ -869,13 +824,13 @@ These read-only variables are always available:
 | `$?`          | Meant to be the exit code of the last external command, but not yet implemented: it is always `0`.
 | `$PWD`        | Working directory (an environment variable).
 | `$mcsh.argc`  | Number of command-line arguments, counting the script name: a script run with no arguments has `argc` 1.
-| `$mcsh.argv`  | List of command-line arguments; `(( get $mcsh.argv 0 ))` is the script name.
+| `$mcsh.argv`  | List of command-line arguments; +(( get $mcsh.argv 0 ))+ is the script name.
 |===
 
 ----
 print $this
-= t1 $time
-= r  $random
+t1=$time
+r=$random
 ----
 
 == Experimental features
@@ -883,7 +838,9 @@ print $this
 The following are present in the test suite but not yet complete, and may
 change: `module { ... }` blocks and `class`/`extends` definitions.
 
-== Example
+== Examples
+
+=== Fibonacci
 
 A recursive Fibonacci, driven by a one-parameter script signature:
 
@@ -892,18 +849,112 @@ signature n
 
 function fib { x } {
   if { $ $x == 0 } {
-    = r 0
+    r=0
   } if { $ $x == 1 } {
-    = r 1
+    r=1
   } or {
-    = r1 (( fib (( $ $x - 1 )) ))
-    = r2 (( fib (( $ $x - 2 )) ))
-    = r  (( $ $r1 + $r2 ))
+    r1=(( fib (( $ $x - 1 )) ))
+    r2=(( fib (( $ $x - 2 )) ))
+    r=(( $ $r1 + $r2 ))
   }
   $ $r
 }
 
 print (( fib $n ))
 ----
+
+Run this from the command line with:
+
+----
+$ mcsh fib.mc 5
+----
+
+== Installation
+
+=== Building and testing
+
+Build from a git checkout with the autotools:
+
+----
+$ ./bootstrap
+$ ./configure --prefix=$HOME/mcsh-install
+$ make
+$ make install
+----
+
+=== Build information
+
+`mcsh -B` reports how this `mcsh` was configured and built, then
+exits.  The report covers when `configure` ran and the arguments it
+was given, the git commit at that time, when `mcsh` was compiled, the
+host, the C compiler and its version, the compiler and linker flags
+(`CPPFLAGS`, `CFLAGS`, `AM_CFLAGS`, `LDFLAGS`, `LIBS`), the lexer and
+parser generators, and whether readline and its history support are
+included, with the readline library version.  Its last section shows
+whether Unicode features are enabled in the current environment, why,
+and the variables that decide it (see <<unicode,Unicode>>).
+
+----
+$ mcsh -B
+MCSH 0.0 build information:
+  configured           2026-11-22 13:07:21
+  compiled             Nov 22 2026 13:07:23
+  ...
+  readline             yes
+    configure          requested yes, found -lreadline
+    library            8.3
+    history            yes
+Unicode in this environment:
+  MCSH_UNICODE         (unset)
+  MCSH_UNICODE_FORCE   (unset)
+  TERM                 xterm-256color
+  LC_ALL               (unset)
+  LC_CTYPE             (unset)
+  LANG                 en_US.UTF-8
+  locale codeset       UTF-8
+  Unicode is enabled (UTF-8 locale and TERM=xterm-256color)
+----
+
+=== Test suite
+
+The test suite is `test/script/test-all.zsh`, and needs `zsh`.  The
+GitHub workflow (`.github/workflows/tests.yaml`) builds with
+`--disable-readline` and runs the suite on `ubuntu-latest` and
+`macos-15`.  On macOS the workflow installs `autoconf`, `automake`,
+`libtool`, `flex`, `bison` and `coreutils` with Homebrew.  The system
+`bison` is too old for the grammars, and `coreutils` supplies
+`gtimeout`, since macOS has no `timeout`.  Tests that need readline are
+skipped when the build has none.
+
+=== Build and runtime options
+
+[[unicode]]
+==== Unicode
+
+Unicode features, such as the shamrock prompt, are enabled when the
+locale uses UTF-8, as most modern systems do, and `TERM` is not one of
+these terminals, which often cannot show them:
+
+* `dumb`, or `TERM` unset or empty
+* `linux` or `linux-...`, the Linux text console
+* `vt52`, `vt100`, `vt220`, ..., DEC VT terminals
+
+Two environment variables override this:
+
+[cols="1,3"]
+|===
+| Variable | Effect
+
+| `MCSH_UNICODE=0`       | Disable Unicode features.  The default is `1`: decide as above.
+| `MCSH_UNICODE_FORCE=1` | Enable Unicode features, even for the terminals above or a locale that is not UTF-8; `mcsh` then switches to the `C.UTF-8` locale if the system has it.  The default is `0`.
+|===
+
+`MCSH_UNICODE=0` takes precedence over `MCSH_UNICODE_FORCE=1`.  For
+example, an Emacs shell buffer sets `TERM=dumb` but can show Unicode,
+so set `MCSH_UNICODE_FORCE=1` there to see the shamrock.  The end of
+the `mcsh -B` report shows the decision and the variables behind it
+(see <<_build_information,Build information>>).
+
+
 
 
