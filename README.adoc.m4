@@ -136,7 +136,7 @@ it is rejected as an operand to arithmetic (see <<_expressions,Expressions>>).
 [[subcommand]]
 === Expression evaluation
 
-Commands are sequences of words (as in the POSIX shell), but always return a value.  This value is obtained for further evaluation with the _subcommand expression_, written +(( command ))+ .  For example:
+Commands are sequences of words (as in the POSIX shell), but always return a value.  This value is obtained for further evaluation with the _subcommand expression_, written `+(( command ))+` .  For example:
 
 ----
 first="George"
@@ -242,9 +242,7 @@ print $+missing    # 0
 
 == Expressions
 
-The `$` builtin evaluates an arithmetic/logical expression.  It is almost
-always used inside a value substitution +(( ... ))+ so the result can be
-captured:
+The `$` builtin evaluates an arithmetic/logical expression:
 
 ----
 print (( $ 2 + 3 ))          # 5
@@ -308,8 +306,8 @@ Like other shells, MCSH can run commands in subprocess shells (subshells) and ca
 |===
 | Form | Meaning
 
-| +(( cmd ))+   | Run `cmd` and substitute its return value.
-| +$(( cmd ))+  | Run `cmd` and substitute its captured standard output.
+| `+(( cmd ))+`   | Run `cmd` and substitute its return value.
+| `+$(( cmd ))+`  | Run `cmd` and substitute its captured standard output.
 |===
 
 ----
@@ -582,7 +580,7 @@ f 2 3               # XY 2 3
 ----
 
 The last value produced by the body is the function's return value, which
-can be captured with +(( ... ))+:
+can be captured with `+(( ... ))+`:
 
 ----
 function inc { x } {
@@ -829,7 +827,7 @@ These read-only variables are always available:
 | `$?`          | Meant to be the exit code of the last external command, but not yet implemented: it is always `0`.
 | `$PWD`        | Working directory (an environment variable).
 | `$mcsh.argc`  | Number of command-line arguments, counting the script name: a script run with no arguments has `argc` 1.
-| `$mcsh.argv`  | List of command-line arguments; +(( get $mcsh.argv 0 ))+ is the script name.
+| `$mcsh.argv`  | List of command-line arguments; `+(( get $mcsh.argv 0 ))+` is the script name.
 |===
 
 ----
