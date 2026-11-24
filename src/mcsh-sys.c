@@ -110,7 +110,7 @@ subcmd_parent(mcsh_module* module, mcsh_value** output, int* pipefd,
   // printf("parent: read: %zi '%s'\n", total, data);
   printf("parent: read: %zi\n", total);
   buffer_finalize(&B);
-  *output = mcsh_value_new_string(module->vm, data);
+  *output = mcsh_value_new_string(data);
   close(pipefd[0]);
   int wstatus;
   waitpid(pid, &wstatus, 0);

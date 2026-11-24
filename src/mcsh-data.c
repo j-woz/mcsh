@@ -496,7 +496,7 @@ to_value(context* ctx, const char* token, mcsh_value** output)
     } else if (!ctx->quoted && is_float(token, &number)) {
       value = mcsh_value_new_float(number);
     } else {
-      value = mcsh_value_new_string(ctx->entry->module->vm, token);
+      value = mcsh_value_new_string(token);
       value->quoted = ctx->quoted;
     }
   }
@@ -600,7 +600,7 @@ do_glob(context* ctx, const char* token, mcsh_value** output)
                                                        G.gl_pathc);
   for (size_t i = 0; i < G.gl_pathc; i++)
   {
-    mcsh_value* v = mcsh_value_new_string(vm, G.gl_pathv[i]);
+    mcsh_value* v = mcsh_value_new_string(G.gl_pathv[i]);
     mcsh_value_grab(ctx->logger, v);
     list_array_add(result->list, v);
   }
@@ -998,7 +998,7 @@ subscript_eval_string(context* ctx,
     CHECK(rc, "subscript failed!");
   }
   *output =
-    mcsh_value_new_string(mcsh_entry_vm(ctx->entry), B.data);
+    mcsh_value_new_string(B.data);
   buffer_finalize(&B);
   return true;
 }
@@ -1326,7 +1326,7 @@ expand_view_table(mcsh_vm* vm, mcsh_value* value)
   list_array* L = result->list;
   TABLE_FOREACH(T, item)
   {
-    mcsh_value* s = mcsh_value_new_string(vm, item->key);
+    mcsh_value* s = mcsh_value_new_string(item->key);
     list_array_add(L, s);
   }
   return result;
@@ -1415,7 +1415,7 @@ expand_regex_replace(mcsh_vm* vm, variable* v, mcsh_value* value,
                      subst);
   }
   else
-    result = mcsh_value_new_string(vm, value->string);
+    result = mcsh_value_new_string(value->string);
 
   regfree(&regex);
   return result;
@@ -1433,7 +1433,7 @@ replace(mcsh_vm* vm, char* original,
   copy(  p, original,     start);
   append(p, substitute,   substitute_length+1);
   append(p, original+end, original_length);
-  mcsh_value* result = mcsh_value_new_string(vm, t);
+  mcsh_value* result = mcsh_value_new_string(t);
   return result;
 }
 
@@ -1445,7 +1445,7 @@ mcsh_data_env(mcsh_vm* vm, const char* name, mcsh_value** result)
     return false;
   mcsh_log(&vm->logger, MCSH_LOG_DATA, MCSH_INFO,
            "found env: '%s'", name);
-  *result = mcsh_value_new_string(vm, v);
+  *result = mcsh_value_new_string(v);
   return true;
 }
 
@@ -1490,7 +1490,7 @@ mcsh_join(mcsh_vm* vm, mcsh_value* L, mcsh_value* delimiter,
   char* d = delimiter->string;
 
   mcsh_join_list_to_buffer(&vm->logger, L->list, d, &B);
-  *result = mcsh_value_new_string(vm, B.data);
+  *result = mcsh_value_new_string(B.data);
   buffer_finalize(&B);
 }
 

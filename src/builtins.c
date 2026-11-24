@@ -347,8 +347,7 @@ read_rl(mcsh_bb* bb)
   char* text;
   mcsh_iface_get("", &text);
 
-  mcsh_value* result = mcsh_value_new_string(bb->module->vm,
-                                             trim_right(text));
+  mcsh_value* result = mcsh_value_new_string(trim_right(text));
   free(text);
   return result;
 }
@@ -362,8 +361,7 @@ read_fgets(mcsh_bb* bb, FILE* fp)
   if (s == NULL)
     result = &mcsh_null;
   else
-    result = mcsh_value_new_string(bb->module->vm,
-                                   trim_right(text));
+    result = mcsh_value_new_string(trim_right(text));
   return result;
 }
 
@@ -383,7 +381,7 @@ builtin_type(mcsh_bb* bb)
   char t[64];
   mcsh_value_type_name(value->type, t);
   mcsh_value* result =
-    mcsh_value_new_string(bb->module->vm, t);
+    mcsh_value_new_string(t);
   maybe_assign(bb->output, result);
   return true;
 }
@@ -511,7 +509,7 @@ builtin_string_decode(mcsh_bb* bb)
   char t[2];
   t[0] = (char) value->integer;
   t[1] = '\0';
-  mcsh_value* result = mcsh_value_new_string(bb->module->vm, t);
+  mcsh_value* result = mcsh_value_new_string(t);
   maybe_assign(bb->output, result);
 
   return true;
@@ -936,7 +934,7 @@ builtin_signature(mcsh_bb* bb)
     char* name = P.names[i]; // bb->args->data[i];
     LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "signature: name '%s'", name);
     mcsh_value* global = P.values[i];
-      // mcsh_value_new(vm, vm->argv[i]);
+      // mcsh_value_new(vm->argv[i]);
     mcsh_value* old;
     if (table_set(&module->vm->globals, name, global,
                   (void*) &old))
@@ -968,7 +966,7 @@ builtin_signature(mcsh_bb* bb)
     const char* script =
       (vm->argv != NULL && vm->argv[0] != NULL) ? vm->argv[0] : "";
     list_array* MA = list_array_construct(P.positional.size + 1);
-    list_array_add(MA, mcsh_value_new_string(vm, script));
+    list_array_add(MA, mcsh_value_new_string(script));
     for (size_t k = 0; k < P.positional.size; k++)
       list_array_add(MA, P.positional.data[k]);
     // Frees the old list only; the module owns it
@@ -1145,7 +1143,7 @@ builtin_os_env(mcsh_bb* bb)
   valgrind_assert(key->type == MCSH_VALUE_STRING);
   char* s = getenv(key->string);
   valgrind_assert(s != NULL);
-  mcsh_value* result = mcsh_value_new_string(bb->module->vm, s);
+  mcsh_value* result = mcsh_value_new_string(s);
   maybe_assign(bb->output, result);
   return true;
 }
@@ -1164,7 +1162,7 @@ builtin_os_pwd(mcsh_bb* bb)
     return false;
   }
   printf("getcwd: %s\n", p);
-  mcsh_value* result = mcsh_value_new_string(bb->module->vm, p);
+  mcsh_value* result = mcsh_value_new_string(p);
   *bb->output = result;
   return true;
 }
@@ -1202,7 +1200,7 @@ builtin_os_dirname(mcsh_bb* bb)
   char t[PATH_MAX];
   strcpy(t, a->string);
   parent(t);
-  *bb->output = mcsh_value_new_string(bb->module->vm, t);
+  *bb->output = mcsh_value_new_string(t);
   return true;
 }
 
@@ -1214,7 +1212,7 @@ builtin_os_basename(mcsh_bb* bb)
   char t[PATH_MAX];
   strcpy(t, a->string);
   char* b = basename(t);
-  *bb->output = mcsh_value_new_string(bb->module->vm, b);
+  *bb->output = mcsh_value_new_string(b);
   return true;
 }
 
@@ -1230,7 +1228,7 @@ builtin_os_resolve(mcsh_bb* bb)
   if (p == NULL)
     RAISE(bb->status, NULL, 0, "mcsh.os",
           "could not resolve: '%s' %s", t, strerror(errno));
-  *bb->output = mcsh_value_new_string(bb->module->vm, b);
+  *bb->output = mcsh_value_new_string(b);
   return true;
 }
 
@@ -1349,8 +1347,8 @@ builtin_os_stat(mcsh_bb* bb)
   if (stat(v->string, &s) != 0)
   {
     mcsh_table_add(logger, result,
-                   mcsh_value_new_string(vm, "error"),
-                   mcsh_value_new_string(vm, errno_symbol(errno)));
+                   mcsh_value_new("error"),
+                   mcsh_value_new(errno_symbol(errno)));
   }
   else
   {
@@ -1374,9 +1372,8 @@ builtin_os_stat(mcsh_bb* bb)
     else if (S_ISBLK(s.st_mode))  type = "blk";
     else if (S_ISFIFO(s.st_mode)) type = "fifo";
     else if (S_ISSOCK(s.st_mode)) type = "sock";
-    mcsh_table_add(&vm->logger, result,
-                   mcsh_value_new_string(vm, "type"),
-                   mcsh_value_new_string(vm, type));
+    mcsh_table_add(&vm->logger, result, mcsh_value_new("type"),
+                                        mcsh_value_new(type));
   }
   maybe_assign(bb->output, result);
   bb->status->code = MCSH_OK;
@@ -1414,8 +1411,8 @@ table_put_int(mcsh_vm* vm, mcsh_value* table,
               const char* key, int64_t value)
 {
   mcsh_table_add(&vm->logger, table,
-                 mcsh_value_new_string(vm, key),
-                 mcsh_value_new_int(value));
+                 mcsh_value_new(key),
+                 mcsh_value_new(value));
 }
 
 static bool
@@ -1425,7 +1422,7 @@ builtin_sh(mcsh_bb* bb)
   printf("sh: %zi\n", bb->args->size);
   // Replace arg 0:
   bb->args->data[0] =
-    mcsh_value_new_string(bb->module->vm, "sh -c '");
+    mcsh_value_new_string("sh -c '");
   // Append end quote to args...
   mcsh_value end_quote;
   mcsh_value_init_string(&end_quote, "'");
@@ -1436,7 +1433,7 @@ builtin_sh(mcsh_bb* bb)
   char exitcode[8];
   sprintf(exitcode, "%i", rc);
   mcsh_value* result =
-    mcsh_value_new_string(bb->module->vm, exitcode);
+    mcsh_value_new_string(exitcode);
   free(cmd);
   maybe_assign(bb->output, result);
   return true;
@@ -1515,7 +1512,7 @@ builtin_split(mcsh_bb* bb)
     if (q == NULL) break;
     strlcpyj(t, p, q-p+1);
     LOG(MCSH_LOG_BUILTIN, MCSH_DEBUG, "%i: '%s'", count, t);
-    value = mcsh_value_new_string(bb->module->vm, t);
+    value = mcsh_value_new_string(t);
     list_array_add(L, value);
     mcsh_value_grab(logger, value);
     p = q+1;
@@ -1524,7 +1521,7 @@ builtin_split(mcsh_bb* bb)
   if (strlen(p) > 0)
   {
     LOG(MCSH_LOG_BUILTIN, MCSH_DEBUG, "%i: '%s'", count, p);
-    value = mcsh_value_new_string(bb->module->vm, p);
+    value = mcsh_value_new_string(p);
     list_array_add(L, value);
     mcsh_value_grab(logger, value);
   }
@@ -1550,7 +1547,7 @@ builtin_join(mcsh_bb* bb)
   buffer_init(&B, L->size);
   mcsh_join_list_to_buffer(logger, L, d, &B);
   mcsh_value* result =
-    mcsh_value_new_string(bb->module->vm, B.data);
+    mcsh_value_new_string(B.data);
   maybe_assign(bb->output, result);
   return true;
 }
@@ -1608,9 +1605,9 @@ builtin_tilde(mcsh_bb* bb)
 
   mcsh_value* result;
   if (under_home)
-    result = mcsh_value_new_stringv(bb->module->vm, "~%s", p + hl);
+    result = mcsh_value_new_stringv("~%s", p + hl);
   else
-    result = mcsh_value_new_string(bb->module->vm, p);
+    result = mcsh_value_new_string(p);
   buffer_finalize(&B);
 
   maybe_assign(bb->output, result);
@@ -1712,7 +1709,7 @@ builtin_substring(mcsh_bb* bb)
   char r[r_length];
   strlcpyj(r, t+p0, r_length);
   printf("result: '%s'\n", r);
-  result = mcsh_value_new_string(bb->module->vm, r);
+  result = mcsh_value_new_string(r);
 
   maybe_assign(bb->output, result);
   bb->status->code = MCSH_OK;

@@ -102,7 +102,7 @@ activation_this_get(mcsh_entry* entry,
   char* r = realpath(t, d);
   assert(r != NULL);
   mcsh_value* result =
-    mcsh_value_new_string(entry->stack->vm, d);
+    mcsh_value_new_string(d);
   *output = result;
   status->code = MCSH_OK;
   return true;

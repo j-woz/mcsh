@@ -856,8 +856,8 @@ mcsh_value* mcsh_value_new_link(mcsh_value* value);
 mcsh_value* mcsh_value_new_int(int64_t i);
 mcsh_value* mcsh_value_new_bool(bool b);
 mcsh_value* mcsh_value_new_float(double f);
-mcsh_value* mcsh_value_new_string(mcsh_vm* vm, const char* s);
-mcsh_value* mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...);
+mcsh_value* mcsh_value_new_string(const char* s);
+mcsh_value* mcsh_value_new_stringv(const char* fmt, ...);
 mcsh_value* mcsh_value_new_string_null(void);
 mcsh_value* mcsh_value_new_list(mcsh_vm* vm);
 mcsh_value* mcsh_value_new_list_sized(mcsh_vm* vm, size_t size);
@@ -874,6 +874,31 @@ mcsh_value* mcsh_value_new_function(mcsh_module* module,
 mcsh_value* mcsh_value_new_activation(mcsh_activation* activation);
 
 mcsh_value* mcsh_value_clone(mcsh_value* value);
+
+static inline mcsh_value*
+mcsh_value_new_from_int(int64_t i)
+{
+  return mcsh_value_new_int(i);
+}
+
+static inline mcsh_value*
+mcsh_value_new_from_float(double f)
+{
+  return mcsh_value_new_float(f);
+}
+
+/** mcsh_value_new(v): a new mcsh_value holding v, chosen by v's C
+    type: int, long, long long -> int; float, double -> float;
+    char* or const char* -> string (copied). */
+#define mcsh_value_new(v) _Generic((v),        \
+    int:         mcsh_value_new_from_int,      \
+    long:        mcsh_value_new_from_int,      \
+    long long:   mcsh_value_new_from_int,      \
+    float:       mcsh_value_new_from_float,    \
+    double:      mcsh_value_new_from_float,    \
+    char*:       mcsh_value_new_string,        \
+    const char*: mcsh_value_new_string         \
+  )((v))
 
 /** See also mcsh_to_string() */
 void mcsh_value_debug(mcsh_value* value);

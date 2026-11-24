@@ -473,7 +473,7 @@ add_globals(mcsh_vm* vm, strmap* map)
   {
     char* key = map->keys[i];
     char* data = map->data[i];
-    mcsh_value* value = mcsh_value_new_string(vm, data);
+    mcsh_value* value = mcsh_value_new_string(data);
     LOG(MCSH_LOG_DATA, MCSH_DEBUG,
         "add_global: '%s'='%s'\n", key, data);
     table_add(&vm->globals, key, value);
@@ -596,7 +596,7 @@ module_args_from_argv(mcsh_vm* vm)
     while (vm->argv[n] != NULL) n++;
   list_array* L = list_array_construct(n > 0 ? n : 1);
   for (size_t i = 0; i < n; i++)
-    list_array_add(L, mcsh_value_new_string(vm, vm->argv[i]));
+    list_array_add(L, mcsh_value_new_string(vm->argv[i]));
   return L;
 }
 
@@ -1367,17 +1367,15 @@ hp_variable(mcsh_vm* vm, buffer* line, const char** start)
 }
 
 mcsh_value*
-mcsh_value_new_string(mcsh_vm* vm, const char* s)
+mcsh_value_new_string(const char* s)
 {
   mcsh_value* value = malloc_checked(sizeof(mcsh_value));
-  mcsh_log(&vm->logger, MCSH_LOG_DATA, MCSH_TRACE,
-           "new string: %p \"%s\"", value, s);
   mcsh_value_init_string(value, strdup(s));
   return value;
 }
 
 mcsh_value*
-mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...)
+mcsh_value_new_stringv(const char* fmt, ...)
 {
   mcsh_value* value = malloc_checked(sizeof(mcsh_value));
   char* t;
@@ -1385,8 +1383,6 @@ mcsh_value_new_stringv(mcsh_vm* vm, const char* fmt, ...)
   va_start(ap, fmt);
   int n = vasprintf(&t, fmt, ap);
   valgrind_assert(n >= 0);
-  mcsh_log(&vm->logger, MCSH_LOG_DATA, MCSH_TRACE,
-           "new stringv: %p \"%s\"", value, t);
   va_end(ap);
   mcsh_value_init_string(value, t);
   return value;
@@ -1468,7 +1464,7 @@ mcsh_value_new_list_charppc(mcsh_vm* vm, int argc, char** argv)
     mcsh_value_new_list_sized(vm, argc);
   for (int i = 0; i < argc; i++)
   {
-    mcsh_value* value = mcsh_value_new_string(vm, argv[i]);
+    mcsh_value* value = mcsh_value_new_string(argv[i]);
     mcsh_list_add(result, value);
     mcsh_value_grab(&vm->logger, value);
   }
@@ -3183,7 +3179,7 @@ mcsh_user_prompt(mcsh_module* module, char** prompt, mcsh_status* status)
 
   list_array A;
   list_array_init(&A, 1);
-  list_array_add(&A, mcsh_value_new_string(module->vm, "prompt"));
+  list_array_add(&A, mcsh_value_new_string("prompt"));
   mcsh_value* result = NULL;
   status->code = MCSH_OK;
   mcsh_value_call(module, f, &A, &result, status);
@@ -3547,36 +3543,6 @@ ptrs_length(void** P)
   return result;
 }
 
-static inline mcsh_value*
-mcsh_value_new_from_int(mcsh_vm* vm, int64_t i)
-{
-  (void) vm;
-  return mcsh_value_new_int(i);
-}
-
-static inline mcsh_value*
-mcsh_value_new_from_float(mcsh_vm* vm, double f)
-{
-  (void) vm;
-  return mcsh_value_new_float(f);
-}
-
-static inline mcsh_value*
-mcsh_value_new_from_string(mcsh_vm* vm, const char* s)
-{
-  return mcsh_value_new_string(vm, s);
-}
-
-#define mcsh_value_new(vm, v) _Generic((v),    \
-    int:         mcsh_value_new_from_int,      \
-    long:        mcsh_value_new_from_int,      \
-    long long:   mcsh_value_new_from_int,      \
-    float:       mcsh_value_new_from_float,    \
-    double:      mcsh_value_new_from_float,    \
-    char*:       mcsh_value_new_string,        \
-    const char*: mcsh_value_new_string         \
-  )((vm), (v))
-
 void
 mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L)
 {
@@ -3588,8 +3554,8 @@ mcsh_strings_to_args(mcsh_vm* vm, char** A, list_array* L)
     // NOTE: The numeric name ("0", "1", ...) is treated as positional by
     // mcsh_parameterize() (see arg_name_is_positional()).
     char* t = A[i];
-    mcsh_arg_init(arg, mcsh_value_new_stringv(vm, "%zi", i),
-                  mcsh_value_new(vm, t));
+    mcsh_arg_init(arg, mcsh_value_new_stringv("%zi", i),
+                  mcsh_value_new(t));
     // Command-line text: converted to the parameter's type on binding
     arg->text = true;
     list_array_add(L, arg);
@@ -4195,7 +4161,7 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
         if (expr->quoted)
         {
           // A quoted literal is always a string, regardless of content.
-          value = mcsh_value_new_string(vm, text);
+          value = mcsh_value_new_string(text);
         }
         else
         {
@@ -4209,7 +4175,7 @@ mcsh_expr_eval(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
           else if (is_float(text, &f))
             value = mcsh_value_new_float(f);
           else
-            value = mcsh_value_new_string(vm, text);
+            value = mcsh_value_new_string(text);
         }
       }
       break;
@@ -4465,7 +4431,7 @@ mcsh_expr_eval_call(mcsh_vm* vm, mcsh_expr* expr, mcsh_value** output,
   // the function name, matching the normal command-dispatch convention.
   list_array A;
   list_array_init(&A, argc + 1);
-  list_array_add(&A, mcsh_value_new_string(vm, name));
+  list_array_add(&A, mcsh_value_new_string(name));
   for (size_t i = 0; i < argc; i++)
     list_array_add(&A, argv[i]);
 
