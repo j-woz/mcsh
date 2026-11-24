@@ -92,6 +92,10 @@ typedef struct
     mcsh_log(logger, cat, lvl, ##format); \
   } while (0);
 
+/// Assumes logger is a local variable
+#define LOG_CHECK(cat, lvl)               \
+    mcsh_log_check(logger, cat, lvl)
+
 bool mcsh_log_init(mcsh_logger* logger, pid_t pid, mcsh_log_lvl lvl);
 
 void mcsh_log_enable(bool b);

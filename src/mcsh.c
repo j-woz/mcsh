@@ -3653,7 +3653,7 @@ set_params(list_array* A, mcsh_value* f, mcsh_entry* entry,
   valgrind_assert(rc);
   // On a binding error, some slots may be unbound: bind nothing.
   PROPAGATE(status);
-  mcsh_parameters_print(&P);
+  if (LOG_CHECK(MCSH_LOG_DATA, MCSH_DEBUG)) mcsh_parameters_print(&P);
 
   for (int i = 0; i < P.count; i++)
   {
