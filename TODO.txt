@@ -72,7 +72,6 @@ Exotic: mcwk: Do something: See test 9201 and notes below REISSUE: 2025-03-13
 default evaluation:  '$x:3' - but handle $PATH
 string buffer type
 fast string appends
-Prompt NEW: 2023-09-09
 Check 'loop while' NEW: 2023-09-09
 Builtin which NEW: 2023-11-11
 Comma operator in math NEW: 2023-12-05
@@ -243,3 +242,4 @@ build list_out_item
 2026-11-19 Named arguments 'f x=3' NEW: 2023-11-08
 2026-11-19 shift : Note that mcsh_entry has a shift for unknown reason
 2026-11-20 default assignment:  'default x 3' or ':= x 3'
+2026-11-23 Prompt NEW: 2023-09-09
