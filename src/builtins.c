@@ -1059,6 +1059,8 @@ builtin_function(mcsh_bb* bb)
   mcsh_set_value(bb->module, name->string, f, bb->status);
   // TODO: check status
 
+  // A definition has no value; the interactive loop needs one
+  maybe_assign(bb->output, &mcsh_null);
   return true;
 }
 

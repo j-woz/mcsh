@@ -1,6 +1,7 @@
 
 0: Basic parsing
 00: Noops
+001: Basic UI tests
 01: Comments
 02: Syntax oddities
 03: Semicolon
@@ -63,6 +64,8 @@
 52: Auto-vars $1 $2 $3 $@
 55: Script signatures
 56: Named arguments
+57: MCSH controls
+570: Prompt
 
 6: Data structures
 

@@ -715,6 +715,12 @@ bool mcsh_source(mcsh_module* caller, const char* name,
 bool mcsh_eval(mcsh_module* caller, char* code,
                mcsh_value** output, mcsh_status* status);
 
+/** The interactive prompt the user defined: if a function prompt
+    exists, run it and set *prompt to its result (the caller frees
+    it).  Otherwise, or if it fails, set *prompt to NULL. */
+bool mcsh_user_prompt(mcsh_module* module, char** prompt,
+                      mcsh_status* status);
+
 void mcsh_stmt_print(mcsh_stmt* stmt, int indent);
 
 void mcsh_value_free(mcsh_logger* logger, mcsh_value* value);

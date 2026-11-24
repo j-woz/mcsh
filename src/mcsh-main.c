@@ -143,7 +143,12 @@ mcsh_start_interactive(mcsh_module* module,
   bool result = true;
   while (true)
   {
-    b = mcsh_iface_get(mcsh_prompt_dflt("mcsh"), &code);
+    char* user_prompt;
+    mcsh_user_prompt(module, &user_prompt, status);
+    b = mcsh_iface_get(user_prompt != NULL ? user_prompt
+                                           : mcsh_prompt_dflt("mcsh"),
+                       &code);
+    free(user_prompt);
     assert(b);
     if (code == NULL)
       break;

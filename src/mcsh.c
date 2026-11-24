@@ -3111,7 +3111,12 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
     entry->args  = frame_args;
     entry->shift = 0;
   }
+  // The body runs from its first statement.  module->instruction is
+  // only for resuming the module's own statements, so save it.
+  int saved_instruction = module->instruction;
+  module->instruction = 0;
   rc = mcsh_stmts_execute(module, &block->stmts, output, status);
+  module->instruction = saved_instruction;
   CHECK(rc, "call(): failed for '%s'", function->name);
   mcsh_log(&module->vm->logger, MCSH_LOG_EVAL, MCSH_DEBUG,
            "call(): frame drop: %zi:%zi", entry->depth, entry->id);
@@ -3124,6 +3129,45 @@ mcsh_value_call(mcsh_module* module, mcsh_value* f,
     entry->args = NULL;
     list_array_free(frame_args);
   }
+  return true;
+}
+
+bool
+mcsh_user_prompt(mcsh_module* module, char** prompt, mcsh_status* status)
+{
+  *prompt = NULL;
+  mcsh_logger* logger = &module->vm->logger;
+  mcsh_value* f;
+  if (! mcsh_stack_search(logger, module->vm->stack.current,
+                          "prompt", &f))
+    return true;
+  if (f->type != MCSH_VALUE_FUNCTION)
+    return true;
+
+  list_array A;
+  list_array_init(&A, 1);
+  list_array_add(&A, mcsh_value_new_string(module->vm, "prompt"));
+  mcsh_value* result = NULL;
+  status->code = MCSH_OK;
+  mcsh_value_call(module, f, &A, &result, status);
+  list_array_finalize(&A);
+
+  if (status->code != MCSH_OK || result == NULL)
+  {
+    // A failing prompt function must not stop the session:
+    // report it and fall back to the default prompt.
+    fprintf(stderr, "mcsh: prompt function failed; "
+            "using the default prompt\n");
+    status->code = MCSH_OK;
+    return true;
+  }
+
+  // The result is an unowned temporary (refs == 0): copy, don't drop
+  buffer B;
+  buffer_init(&B, 64);
+  mcsh_value_buffer(logger, result, &B);
+  *prompt = strdup(B.data);
+  buffer_finalize(&B);
   return true;
 }
 
