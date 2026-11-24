@@ -165,14 +165,12 @@ expr:
         |
                 expr LE expr
                 {
-                  printf("found: LE: %s\n", $2);
                   $$ = mcsh_node_op(MCSH_OP_LE, $1, $3,
                                     mcsh_expr_line);
                 }
         |
                 expr GE expr
                 {
-                  printf("found: GE: %s\n", $2);
                   $$ = mcsh_node_op(MCSH_OP_GE, $1, $3,
                                     mcsh_expr_line);
                 }

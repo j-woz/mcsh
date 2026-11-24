@@ -1696,10 +1696,8 @@ cmp_value_str(const void* a0, const void* a1)
 static bool
 builtin_substring(mcsh_bb* bb)
 {
-  printf("SUBSTRING\n");
   mcsh_value* target = bb->args->data[1];
   mcsh_resolve(target);
-  printf("arg 1 %p\n", target);
   mcsh_value* start = bb->args->data[2];
   mcsh_resolve(start);
   mcsh_value* end = bb->args->data[3];
@@ -1714,7 +1712,6 @@ builtin_substring(mcsh_bb* bb)
   int r_length = p1-p0+1;
   char r[r_length];
   strlcpyj(r, t+p0, r_length);
-  printf("result: '%s'\n", r);
   result = mcsh_value_new_string(r);
 
   maybe_assign(bb->output, result);

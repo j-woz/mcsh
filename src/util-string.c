@@ -6,19 +6,16 @@
 char*
 list_array_join_strings(list_array* L, char* delimiter)
 {
-  printf("join_strings: %zi\n", L->size);
   buffer B;
   buffer_init(&B, L->size);
   for (size_t i = 0; i < L->size; i++)
   {
     char* s = L->data[i];
-    printf("append: '%s'\n", s);
     buffer_cat(&B, s);
     if (i < L->size - 1)
       buffer_cat(&B, delimiter);
   }
   char* result = buffer_dup(&B);
-  printf("result: '%s'\n", result);
   buffer_finalize(&B);
   return result;
 }
@@ -26,7 +23,6 @@ list_array_join_strings(list_array* L, char* delimiter)
 char*
 list_array_join_values(list_array* L, char* delimiter)
 {
-  printf("join_values: %zi\n", L->size);
   buffer B;
   buffer_init(&B, L->size);
   for (size_t i = 0; i < L->size; i++)
@@ -39,7 +35,6 @@ list_array_join_values(list_array* L, char* delimiter)
       buffer_cat(&B, delimiter);
   }
   char* result = buffer_dup(&B);
-  printf("result: '%s'\n", result);
   buffer_finalize(&B);
   return result;
 }

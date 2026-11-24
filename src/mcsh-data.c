@@ -595,7 +595,6 @@ do_glob(context* ctx, const char* token, mcsh_value** output)
   mcsh_vm* vm = ctx->entry->stack->vm;
   // |GLOB_TILDE is not on Cygwin
   glob(token, GLOB_ERR|GLOB_MARK, NULL, &G);
-  printf("matches: %zi\n", G.gl_pathc);
   mcsh_value* result = mcsh_value_new_list_sized(vm,
                                                        G.gl_pathc);
   for (size_t i = 0; i < G.gl_pathc; i++)
@@ -1162,7 +1161,6 @@ subscript_eval_table(context* ctx,
   if (v->subscript.contigs.size == 1)
   {
     // printf("eval_table_1\n");
-    variable_print(v);
     eval_table_1(ctx, v, T, &result);
   }
   else
@@ -1185,7 +1183,6 @@ static bool eval_table_1(context* ctx, variable* v, struct table* T,
   contig* c = v->subscript.contigs.data[0];
   valgrind_assert(c->type == CONTIG_STRINGS);
   mcsh_value* result;
-  printf("search: key='%s'\n", c->key);
   table_search(T, c->key, (void**) &result);
   subscript_eval_expander(v, c, result, &result, ctx->status);
   *output = result;

@@ -1700,7 +1700,6 @@ mcsh_function_new(mcsh_module* module,
   // not print or use the signature -- let the exception propagate.
   if (status->code != MCSH_OK)
     return result;
-  mcsh_signature_print(&result->signature);
 
   result->block = code;
   return result;
@@ -1839,6 +1838,7 @@ mcsh_signature_parse_block(mcsh_module* module,
                            mcsh_status* status)
 /** Parse a function's signature block { x y:int z=3 rest... } */
 {
+  mcsh_logger* logger = &module->vm->logger;
   signature->extras    = false;
   signature->rest      = NULL;
   signature->rest_type = MCSH_VALUE_ANY;
@@ -1919,7 +1919,7 @@ mcsh_signature_parse_block(mcsh_module* module,
   sg_check_rest_duplicate(signature, status);
   PROPAGATE(status);
 
-  printf("signature_parse: %zu\n", count);
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "signature_parse: %zu", count);
   return true;
 }
 
@@ -2013,7 +2013,7 @@ mcsh_signature_parse_values(mcsh_module* module,
   CHECK0(ok);
   PROPAGATE(status);
 
-  printf("signature_parse_values(): %zu\n", count);
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "signature_parse_values: %zu", count);
   return true;
 }
 
@@ -2035,6 +2035,7 @@ sg_parse_string(mcsh_module* module,
                 const char* dflt_text,
                 mcsh_status* status)
 {
+  mcsh_logger* logger = &module->vm->logger;
   char* t = alloca(strlen(text) + 1);
   strcpy(t, text);
   mcsh_value* dflt = NULL;
@@ -2088,7 +2089,7 @@ sg_parse_string(mcsh_module* module,
   if (flag && type == MCSH_VALUE_BOOL && dflt == NULL)
     dflt = mcsh_value_new_bool(false);
 
-  printf("name: '%s' type=%i flag=%i\n", t, type, flag);
+  LOG(MCSH_LOG_PARSE, MCSH_DEBUG, "signature name: '%s' type=%i flag=%i", t, type, flag);
   slot_init(&signature->slots[i], t, dflt, type, flag);
   return true;
 }
@@ -3266,16 +3267,22 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
    RAISEs exceptions
  */
 {
-  show("parameterize A=%zi...", A->size);
+  mcsh_logger* logger = &mcsh.logger;
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "parameterize A=%zi", A->size);
   parameters_init(P, sg);
 
   for (size_t i = 0; i < A->size; i++)
   {
     mcsh_arg* arg = list_array_get(A, i);
     if (arg->name == NULL)
-      show("got: NULL");
+    {
+      LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "parameterize got: NULL");
+    }
     else
-      show("got: '%s'", arg->name->string);
+    {
+      LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "parameterize got: '%s'",
+          arg->name->string);
+    }
 
     // A numeric name (e.g. script args named "0", "1", ...) is treated
     // as positional; only a non-numeric name selects a slot by name.
@@ -3312,7 +3319,7 @@ mcsh_parameterize(mcsh_signature* sg, list_array* A,
   }
 
   set_defaults(sg, P, status);
-  show("parameterize OK.");
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "parameterize OK");
   return true;
 }
 
@@ -3410,7 +3417,6 @@ static inline bool
 set_positional_next(mcsh_signature* sg, mcsh_value* value, bool text,
                     mcsh_parameters* P, mcsh_status* status)
 {
-  printf("set_positional:\n");
   for (uint16_t j = 0; j < sg->count; j++)
   {
     // Flag slots are filled by "-name", never positionally.
@@ -3455,19 +3461,17 @@ set_positional_at(mcsh_signature* sg, mcsh_value* value, bool text,
                   mcsh_parameters* P, uint16_t j,
                   mcsh_status* status)
 {
-  printf("set_positional_at ...\n");
+  mcsh_logger* logger = &mcsh.logger;
+  LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "set_positional_at: %i", j);
   char* name = sg->slots[j].name;
   if (sg->slots[j].type != MCSH_VALUE_ANY)
   {
-    printf("type check\n");
     value = coerce(value, sg->slots[j].type, text);
     TYPE_CHECK(value, sg->slots[j].type, status, name, j,
                "bad type");
   }
 
-  printf("%i orig %p\n", j, name);
   P->names[j] = strdup_null_checked(sg->slots[j].name);
-  printf("%i name %p '%s'\n", j, P->names[j], P->names[j]);
   P->count++;
   P->values[j] = value;
   mcsh_value_grab(NULL, value);
@@ -3513,9 +3517,10 @@ static inline bool
 set_defaults(mcsh_signature* sg, mcsh_parameters* P,
              mcsh_status* status)
 {
+  mcsh_logger* logger = &mcsh.logger;
   for (uint16_t j = 0; j < sg->count; j++)
   {
-    printf("check: j=%i\n", j);
+    LOG(MCSH_LOG_CONTROL, MCSH_DEBUG, "set_defaults: j=%i", j);
     if (P->values[j] == NULL)
     {
       printf(" found NULL\n");
@@ -5142,7 +5147,6 @@ mcsh_value_type_code(char* name, mcsh_value_type* type)
     unchanged, if the name is not a type (NULL is not a usable type). */
 {
   value_names_init();
-  printf("value_type_code: '%s'\n", name);
   int result = lookup_by_text(type_names, name);
   if (result <= 0) return false;
   *type = result;
