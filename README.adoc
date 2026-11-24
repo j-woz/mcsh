@@ -906,6 +906,30 @@ t1=$time
 r=$random
 ----
 
+== Interactive sessions
+
+In interactive sessions, certain additional features are enabled.
+
+[[auto_scripts]]
+=== Auto scripts
+
+Some scripts are run automatically run by `mcsh` unless environment variable `MCSH_AUTO=0` .
+
+At startup, `mcsh` automatically sources `~/.config/mcsh/start.mc` if it exists.  This is a good place to set the <<prompt,prompt>> or other settings.
+
+[[prompt]]
+=== `prompt` function
+
+The user-defined `prompt` function is evaluated just before every prompt.  If the user has not provided this function, `mcsh` will fall back to the default prompt.  This function can run any desired code.
+
+The default prompt can be overridden with the return string from this function.  An example that uses an abbreviated `PWD`-based prompt is shown here:
+
+----
+function prompt { } {
+  return (( + " " (( tilde $PWD )) "☘  " ))
+}
+----
+
 == Examples
 
 === Fibonacci
