@@ -2083,6 +2083,11 @@ sg_parse_string(mcsh_module* module,
     CHECK0(rc);
   }
 
+  // A bool flag is presence-only, so when absent it is false: it never
+  // needs an explicit default (-n:bool is the same as -n:bool=false).
+  if (flag && type == MCSH_VALUE_BOOL && dflt == NULL)
+    dflt = mcsh_value_new_bool(false);
+
   printf("name: '%s' type=%i flag=%i\n", t, type, flag);
   slot_init(&signature->slots[i], t, dflt, type, flag);
   return true;
