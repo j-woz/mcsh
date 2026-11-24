@@ -392,7 +392,11 @@ print *.txt         # expands to the matching file names
 s=(( substring justin 2 4 ))   # st  -- characters [2,4)
 i=(( find justin st ))         # 2   -- index of substring, or -1
 print (( string = a a a ))       # 1   -- all arguments equal?
+print (( tilde (( + $HOME "/proj/mcsh" )) ))  # ~/proj/mcsh
 ----
+
+`tilde` replaces a leading `$HOME` with `~`, matching whole path
+components only.  Other paths are returned unchanged.
 
 === Lists
 

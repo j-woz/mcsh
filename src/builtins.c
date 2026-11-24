@@ -1483,6 +1483,42 @@ builtin_find(mcsh_bb* bb)
   return true;
 }
 
+/** tilde PATH: if PATH is $HOME or below it, replace the $HOME part
+    with ~, e.g. /home/me/proj -> ~/proj.  Other paths are returned
+    unchanged.  The match is on whole path components, so /home/mex
+    is not under /home/me. */
+static bool
+builtin_tilde(mcsh_bb* bb)
+{
+  if (bb->args->size != 2)
+    RAISE(bb->status, NULL, 0, "mcsh.invalid_arguments",
+          "tilde requires 1 argument, given %zi", bb->args->size - 1);
+  mcsh_value* path = bb->args->data[1];
+  mcsh_resolve(path);
+
+  buffer B;
+  buffer_init(&B, 64);
+  mcsh_value_buffer(&bb->module->vm->logger, path, &B);
+  const char* p = B.data;
+
+  // An empty or "/" HOME would match everything: leave paths alone
+  const char* home = getenv("HOME");
+  size_t hl = (home == NULL) ? 0 : strlen(home);
+  bool under_home = hl > 1 && strncmp(p, home, hl) == 0 &&
+                    (p[hl] == '\0' || p[hl] == '/');
+
+  mcsh_value* result;
+  if (under_home)
+    result = mcsh_value_new_stringv(bb->module->vm, "~%s", p + hl);
+  else
+    result = mcsh_value_new_string(bb->module->vm, p);
+  buffer_finalize(&B);
+
+  maybe_assign(bb->output, result);
+  bb->status->code = MCSH_OK;
+  return true;
+}
+
 static bool sort_type_check(mcsh_bb* bb, list_array* L,
                             mcsh_value_type* type);
 
@@ -1814,6 +1850,7 @@ builtins_add()
   table_add(mcsh.builtins, "as",        builtin_as);
   table_add(mcsh.builtins, "string",    builtin_string);
   table_add(mcsh.builtins, "find",      builtin_find);
+  table_add(mcsh.builtins, "tilde",     builtin_tilde);
   table_add(mcsh.builtins, "sort",      builtin_sort);
   table_add(mcsh.builtins, "substring", builtin_substring);
   table_add(mcsh.builtins, "sh",        builtin_sh);
