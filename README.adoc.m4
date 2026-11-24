@@ -400,6 +400,10 @@ print (( string = a a a ))       # 1   -- all arguments equal?
 print (( tilde (( + $HOME "/proj/mcsh" )) ))  # ~/proj/mcsh
 ----
 
+`find` needs strings for both arguments.  A bare number such as `0123` is
+an int, so quote it: `find "0123456789" "2"` searches the quoted text,
+while an unquoted `0123456789` raises an error.
+
 `tilde` replaces a leading `$HOME` with `~`, matching whole path
 components only.  Other paths are returned unchanged.
 
@@ -648,9 +652,9 @@ MCSH has a data model that includes `function`, `inplace`, `macro`, `module`, an
 
 ----
 # stores a+3 as global x:
-function f { a } {
+function f { a:int } {
   global x
-  x=(( 3 + $a ))
+  x=(( $ 3 + $a ))
 }
 ----
 
@@ -716,7 +720,7 @@ rest parameter, which collects any extra arguments.
 | `x:int`         | Typed; the argument is type-checked.
 | `x=789`         | A default value (used when the argument is absent).
 | `x:int=789`     | Typed with a default.
-| `-v:bool=false` | A boolean *flag*: the token `-v` sets it to `true`.
+| `-v:bool=false` | A boolean *flag*: the token `-v` sets it to `true`.  The `=false` is optional.
 | `-o=out`        | A value flag: `-o VALUE` sets it; defaults to `out`.
 | `+rest...+`     | A rest parameter: a list of the leftover arguments.
 | `+rest:int...+` | A typed rest parameter: each leftover is type-checked.
