@@ -1556,10 +1556,16 @@ static bool
 builtin_find(mcsh_bb* bb)
 {
   // printf("FIND\n");
+  EXCEPTION_ARGC_EQ(2);
   mcsh_value* haystack = bb->args->data[1];
   mcsh_resolve(haystack);
+  // A bare number such as 0123 is an int, which has no string
+  TYPE_CHECK(haystack, MCSH_VALUE_STRING, bb->status, "find", 1,
+             "haystack must be a string; quote it, e.g. \"0123\"");
   mcsh_value* needle = bb->args->data[2];
   mcsh_resolve(needle);
+  TYPE_CHECK(needle, MCSH_VALUE_STRING, bb->status, "find", 2,
+             "needle must be a string; quote it, e.g. \"0\"");
   char* h = haystack->string;
   char* n = needle  ->string;
   char* p = strstr(h, n);
