@@ -5,6 +5,9 @@ LIMIT=1000000
 JUMP_TO=""
 SKIP_TO=""
 
+# Tests must not read the user's automatic files (e.g. start.mc)
+export MCSH_AUTO=0
+
 zparseopts h=H j:=J k:=K n:=N v+=V
 
 if (( ${#H} )) {

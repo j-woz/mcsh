@@ -60,6 +60,7 @@ main(int argc, char* argv[])
   {
     goto final;
   }
+  mcsh_run_start_file(&vm);
 
   mcsh_value* value = NULL;
   mcsh_status status;

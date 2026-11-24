@@ -732,6 +732,43 @@ mcsh_source(mcsh_module* caller, const char* name,
 }
 
 bool
+mcsh_run_start_file(mcsh_vm* vm)
+{
+  // ~/.config/mcsh/start.mc, run in the main module at VM start.
+  // Absent is normal: nothing to do.  MCSH_AUTO=0 skips all
+  // automatic files (this one, and any added later).
+  bool automatic = true;
+  if (! getenv_boolean("MCSH_AUTO", true, &automatic))
+    automatic = true;
+  if (! automatic) return true;
+  const char* home = getenv("HOME");
+  if (home == NULL) return true;
+  char path[PATH_MAX];
+  snprintf(path, sizeof(path), "%s/.config/mcsh/start.mc", home);
+  FILE* fp = fopen(path, "r");
+  if (fp == NULL) return true;
+
+  char* code = slurp_fp(fp);
+  fclose(fp);
+  mcsh_log(&vm->logger, MCSH_LOG_MODULE, MCSH_INFO,
+           "running start file: '%s'", path);
+
+  mcsh_stmts stmts;
+  mcsh_stmts_init(&stmts);
+  mcsh_source_parse(path, code, vm->main, &stmts);
+
+  mcsh_status status;
+  mcsh_status_init(&status);
+  mcsh_value* output = NULL;
+  mcsh_stmts_execute(vm->main, &stmts, &output, &status);
+  // A failing start file is reported; the session still starts.
+  if (status.code == MCSH_EXCEPTION)
+    fprintf(stderr, "mcsh: %s: %s\n", path,
+            status.exception->tag);
+  return true;
+}
+
+bool
 mcsh_eval(mcsh_module* caller, char* code,
           mcsh_value** output, mcsh_status* status)
 {

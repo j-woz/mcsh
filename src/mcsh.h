@@ -721,6 +721,10 @@ bool mcsh_eval(mcsh_module* caller, char* code,
 bool mcsh_user_prompt(mcsh_module* module, char** prompt,
                       mcsh_status* status);
 
+/** Run ~/.config/mcsh/start.mc in the VM's main module, if it exists.
+    Called once when a VM starts. */
+bool mcsh_run_start_file(mcsh_vm* vm);
+
 void mcsh_stmt_print(mcsh_stmt* stmt, int indent);
 
 void mcsh_value_free(mcsh_logger* logger, mcsh_value* value);

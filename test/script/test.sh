@@ -115,6 +115,9 @@ fi
 CODE=0
 SUCCESS=0
 
+# Tests must not read the user's automatic files (e.g. start.mc)
+export MCSH_AUTO=0
+
 # Possibly turn on valgrind:
 export VALGRIND=${VALGRIND:-1}
 # Disable valgrind on Cygwin:
