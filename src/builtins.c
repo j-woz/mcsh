@@ -1090,6 +1090,7 @@ static bool builtin_os_resolve(mcsh_bb* bb);
 static bool builtin_os_rename(mcsh_bb* bb);
 static bool builtin_os_remove(mcsh_bb* bb);
 static bool builtin_os_mkdir(mcsh_bb* bb);
+static bool builtin_os_stat(mcsh_bb* bb);
 
 static bool
 builtin_os(mcsh_bb* bb)
@@ -1123,6 +1124,8 @@ builtin_os(mcsh_bb* bb)
       rc = builtin_os_remove(bb);
   else if (strcmp(subcommand->string, "mkdir") == 0)
       rc = builtin_os_mkdir(bb);
+  else if (strcmp(subcommand->string, "stat") == 0)
+      rc = builtin_os_stat(bb);
 
   else
     RAISE(bb->status, NULL, 0, "mcsh.exception.invalid_arguments",
@@ -1317,6 +1320,102 @@ builtin_os_mkdir(mcsh_bb* bb)
 
   *bb->output = mcsh_value_new_int(0);
   return true;
+}
+
+static inline void table_put_int(mcsh_vm* vm, mcsh_value* table,
+                                 const char* key, int64_t value);
+
+static const char* errno_symbol(int e);
+
+/** os stat PATH: a table of the stat(2) fields of PATH: dev, ino,
+    mode, nlink, uid, gid, size, blksize, blocks, atime, mtime,
+    ctime, and type ("file", "dir", "chr", "blk", "fifo", "sock",
+    "other").  If PATH cannot be stat'ed, the table has only
+    error, the errno value (e.g. ENOENT). */
+static bool
+builtin_os_stat(mcsh_bb* bb)
+{
+  EXCEPTION_ARGC_EQ(2);
+  mcsh_value* v = bb->args->data[2];
+  TYPE_CHECK(v, MCSH_VALUE_STRING, bb->status, "stat", 2,
+             "argument must be a file name");
+
+  mcsh_vm* vm = bb->module->vm;
+  mcsh_logger* logger = &vm->logger;
+  LOG(MCSH_LOG_BUILTIN, MCSH_INFO, "os stat: '%s'", v->string);
+
+  mcsh_value* result = mcsh_value_new_table(vm, 16);
+  struct stat s;
+  if (stat(v->string, &s) != 0)
+  {
+    mcsh_table_add(logger, result,
+                   mcsh_value_new_string(vm, "error"),
+                   mcsh_value_new_string(vm, errno_symbol(errno)));
+  }
+  else
+  {
+    table_put_int(vm, result, "dev",     (int64_t) s.st_dev);
+    table_put_int(vm, result, "ino",     (int64_t) s.st_ino);
+    table_put_int(vm, result, "mode",    (int64_t) s.st_mode);
+    table_put_int(vm, result, "nlink",   (int64_t) s.st_nlink);
+    table_put_int(vm, result, "uid",     (int64_t) s.st_uid);
+    table_put_int(vm, result, "gid",     (int64_t) s.st_gid);
+    table_put_int(vm, result, "size",    (int64_t) s.st_size);
+    table_put_int(vm, result, "blksize", (int64_t) s.st_blksize);
+    table_put_int(vm, result, "blocks",  (int64_t) s.st_blocks);
+    table_put_int(vm, result, "atime",   (int64_t) s.st_atime);
+    table_put_int(vm, result, "mtime",   (int64_t) s.st_mtime);
+    table_put_int(vm, result, "ctime",   (int64_t) s.st_ctime);
+
+    const char* type = "other";
+    if (S_ISREG(s.st_mode))       type = "file";
+    else if (S_ISDIR(s.st_mode))  type = "dir";
+    else if (S_ISCHR(s.st_mode))  type = "chr";
+    else if (S_ISBLK(s.st_mode))  type = "blk";
+    else if (S_ISFIFO(s.st_mode)) type = "fifo";
+    else if (S_ISSOCK(s.st_mode)) type = "sock";
+    mcsh_table_add(&vm->logger, result,
+                   mcsh_value_new_string(vm, "type"),
+                   mcsh_value_new_string(vm, type));
+  }
+  maybe_assign(bb->output, result);
+  bb->status->code = MCSH_OK;
+  return true;
+}
+
+/** The symbol name of an errno value, e.g. "ENOENT".  Values not
+    listed here are returned as "errno=N". */
+static const char*
+errno_symbol(int e)
+{
+  static char other[32];
+  switch (e)
+  {
+    case EPERM:     return "EPERM";
+    case ENOENT:    return "ENOENT";
+    case EIO:       return "EIO";
+    case EBADF:     return "EBADF";
+    case EACCES:    return "EACCES";
+    case EEXIST:    return "EEXIST";
+    case ENOTDIR:   return "ENOTDIR";
+    case EISDIR:    return "EISDIR";
+    case EINVAL:    return "EINVAL";
+    case ENAMETOOLONG: return "ENAMETOOLONG";
+    case ELOOP:     return "ELOOP";
+    case ENOTEMPTY: return "ENOTEMPTY";
+    default:
+      snprintf(other, sizeof(other), "errno=%i", e);
+      return other;
+  }
+}
+
+static inline void
+table_put_int(mcsh_vm* vm, mcsh_value* table,
+              const char* key, int64_t value)
+{
+  mcsh_table_add(&vm->logger, table,
+                 mcsh_value_new_string(vm, key),
+                 mcsh_value_new_int(value));
 }
 
 static bool

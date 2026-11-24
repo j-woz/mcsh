@@ -465,6 +465,21 @@ print (( os ..   /a/b/c ))  # dirname  -> /a/b
 print (( os file /a/b/c ))  # basename -> c
 print (( os resolve ./.. )) # canonical path
 print (( os pid ))          # process id
+s=(( os stat /a/b/c ))      # table of stat fields: size, mtime, mode, ...
+print $s[size]
+----
+
+`os stat` returns a table with the `stat` fields `dev`, `ino`, `mode`,
+`nlink`, `uid`, `gid`, `size`, `blksize`, `blocks`, `atime`, `mtime`,
+`ctime`, and `type` (`file`, `dir`, `chr`, `blk`, `fifo`, `sock`, or
+`other`).  If the file cannot be examined, the table holds only `error`,
+the name of the `errno` value as a string, e.g. `ENOENT`.  Errors that
+are not named by mcsh are given as `errno=N`:
+
+----
+s=(( os stat maybe/missing ))
+print error $s[error]       # ENOENT
+print $+s[error]            # 1: the key is present
 ----
 
 [[external_programs]]
