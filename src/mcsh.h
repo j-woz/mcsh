@@ -911,6 +911,9 @@ void mcsh_table_add(mcsh_logger* logger,
                     mcsh_value* table,
                     mcsh_value* key, mcsh_value* value);
 
+/** True if name is a keyword (e.g. if, loop, foreach) */
+bool mcsh_is_keyword(const char* name);
+
 bool mcsh_module_execute(mcsh_module* module,
                          mcsh_value** output,
                          mcsh_status* status);

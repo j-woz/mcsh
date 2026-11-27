@@ -72,8 +72,6 @@ Exotic: mcwk: Do something: See test 9201 and notes below REISSUE: 2025-03-13
 default evaluation:  '$x:3' - but handle $PATH
 string buffer type
 fast string appends
-Check 'loop while' NEW: 2023-09-09
-Builtin which NEW: 2023-11-11
 Comma operator in math NEW: 2023-12-05
 Ability to run shell command in math environment (use functions?) NEW: 2023-12-05
 Assignments in calc mode (( $ x = 3 )) NEW 2024-04-13
@@ -244,3 +242,4 @@ build list_out_item
 2026-11-20 default assignment:  'default x 3' or ':= x 3'
 2026-11-23 Prompt NEW: 2023-09-09
 2026-11-24 Try GCC generics for mcsh_new(int), mcsh_new(string), etc. NEW 2024-12-06
+2026-11-27 Builtin which NEW: 2023-11-11

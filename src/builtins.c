@@ -1621,6 +1621,111 @@ builtin_tilde(mcsh_bb* bb)
   return true;
 }
 
+static const char*
+fn_kind_name(mcsh_fn_type type)
+{
+  switch (type)
+  {
+    case MCSH_FN_INPLACE: return "inplace";
+    case MCSH_FN_MACRO:   return "macro";
+    default:              return "function";
+  }
+}
+
+/** True if path names a regular file that this process may execute */
+static bool
+is_executable_file(const char* path)
+{
+  struct stat s;
+  return stat(path, &s) == 0 && S_ISREG(s.st_mode) &&
+         access(path, X_OK) == 0;
+}
+
+/** Find name as a shell does: a name with a '/' is taken as it is;
+    otherwise each directory in $PATH is tried in order, and an empty
+    entry means the current directory.  found receives the first
+    executable match. */
+static bool
+path_find_executable(const char* name, char* found, size_t size)
+{
+  if (strchr(name, '/') != NULL)
+  {
+    snprintf(found, size, "%s", name);
+    return is_executable_file(found);
+  }
+  const char* path = getenv("PATH");
+  if (path == NULL) return false;
+  const char* p = path;
+  while (true)
+  {
+    const char* end = strchr(p, ':');
+    size_t len = (end == NULL) ? strlen(p) : (size_t) (end - p);
+    char dir[PATH_MAX];
+    if (len == 0)
+      strcpy(dir, ".");
+    else
+    {
+      size_t n = (len < PATH_MAX) ? len : PATH_MAX - 1;
+      memcpy(dir, p, n);
+      dir[n] = '\0';
+    }
+    snprintf(found, size, "%s/%s", dir, name);
+    if (is_executable_file(found)) return true;
+    if (end == NULL) break;
+    p = end + 1;
+  }
+  return false;
+}
+
+/** which NAME...: for each name, report "NAME: keyword" for a keyword,
+    "NAME: function" (or inplace, or macro) for a defined callable,
+    or "NAME: builtin" for a builtin command; otherwise print the
+    executable found in $PATH,
+    or "NAME: not found".  The result is the number of names not
+    found. */
+static bool
+builtin_which(mcsh_bb* bb)
+{
+  mcsh_vm* vm = bb->module->vm;
+  int not_found = 0;
+  for (size_t i = 1; i < bb->args->size; i++)
+  {
+    buffer B;
+    buffer_init(&B, 64);
+    mcsh_value_buffer(&vm->logger, bb->args->data[i], &B);
+    const char* name = B.data;
+
+    mcsh_value* f = NULL;
+    if (mcsh_is_keyword(name))
+      printf("%s: keyword\n", name);
+    else if (mcsh_stack_search(&vm->logger, vm->stack.current, name, &f) &&
+        f->type == MCSH_VALUE_FUNCTION)
+    {
+      printf("%s: %s\n", name, fn_kind_name(f->function->type));
+      mcsh_signature_print(&f->function->signature);
+      mcsh_block_print(f->function->block, 0);
+      printf("\n");
+    }
+    else if (mcsh_builtins_has(name))
+      printf("%s: builtin\n", name);
+    else
+    {
+      char found[PATH_MAX];
+      if (path_find_executable(name, found, sizeof(found)))
+        printf("%s\n", found);
+      else
+      {
+        printf("%s: not found\n", name);
+        not_found++;
+      }
+    }
+    buffer_finalize(&B);
+  }
+  maybe_assign(bb->output, mcsh_value_new_int(not_found));
+  bb->status->code = MCSH_OK;
+  return true;
+}
+
 static bool sort_type_check(mcsh_bb* bb, list_array* L,
                             mcsh_value_type* type);
 
@@ -1950,6 +2055,7 @@ builtins_add()
   table_add(mcsh.builtins, "string",    builtin_string);
   table_add(mcsh.builtins, "find",      builtin_find);
   table_add(mcsh.builtins, "tilde",     builtin_tilde);
+  table_add(mcsh.builtins, "which",     builtin_which);
   table_add(mcsh.builtins, "sort",      builtin_sort);
   table_add(mcsh.builtins, "substring", builtin_substring);
   table_add(mcsh.builtins, "sh",        builtin_sh);

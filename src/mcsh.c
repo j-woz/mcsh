@@ -2406,6 +2406,13 @@ is_keyword(const char* command)
   return result;
 }
 
+/** True if name is a keyword (e.g. if, loop, foreach) */
+bool
+mcsh_is_keyword(const char* name)
+{
+  return is_keyword(name);
+}
+
 static void
 build_keywords(char* keyword_string)
 {
