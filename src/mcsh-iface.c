@@ -173,8 +173,14 @@ iface_init(void)
   char* home = getenv("HOME");
   struct stat s;
   int rc;
-  rc = stat(home, &s);
-  if (rc != 0) return;  // No HOME directory!
+  rc = (home == NULL) ? -1 : stat(home, &s);
+  if (rc != 0 || !S_ISDIR(s.st_mode))
+  {
+    // No home directory: warn, and do not save history
+    fprintf(stderr, "mcsh: warning: home directory '%s' does not exist; "
+            "history will not be saved\n", home == NULL ? "(unset)" : home);
+    return;
+  }
   char p[PATH_MAX];
   strcpy(p, home);
   strcat(p, "/.config/mcsh");
@@ -184,14 +190,17 @@ iface_init(void)
   if (S_ISDIR(s.st_mode))
     goto use_config_mcsh;
 
-  use_home:  // Start over with HOME:
+  use_home:  // Fall back to the file $HOME/.mcsh_history
   strcpy(p, home);
   strcat(p, "/.mcsh_history");
+  history_file = strdup(p);
+  goto read_it;
 
   use_config_mcsh:
-
   strcat(p, "/mcsh.history");
   history_file = strdup(p);
+
+  read_it:
   // printf("history_file: %s\n", history_file);
   read_history(history_file);
   // printf("entries: %i\n", history_length);
@@ -246,7 +255,13 @@ insert_history(char* line)
     return;
 #ifdef HAVE_LIBREADLINE
   add_history(line);
-  append_history(1, history_file);
+  // No history file (no home directory): keep the line in memory only
+  if (history_file == NULL)
+    return;
+  // append_history() does not create the file (it fails with ENOENT
+  // on the first line), so write the whole history in that case.
+  if (append_history(1, history_file) != 0)
+    write_history(history_file);
 #endif
 }
 
